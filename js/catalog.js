@@ -129,7 +129,7 @@
       if (!e || !feat) return;
       for (var i = 0; i < e.sigs.length; i++) if (featDist(e.sigs[i], feat) < 0.03) return;
       e.sigs.push(feat);
-      if (e.sigs.length > 12) e.sigs.shift();
+      if (e.sigs.length > 20) e.sigs.shift();
       this.save();
     },
 
@@ -193,7 +193,7 @@
           var dup = ex.sigs.some(function (o) { return featDist(o, s) < 0.03; });
           if (!dup) { ex.sigs.push(s); novas++; }
         });
-        if (ex.sigs.length > 12) ex.sigs = ex.sigs.slice(-12);
+        if (ex.sigs.length > 20) ex.sigs = ex.sigs.slice(-20);
         if (!ex.thumb && e.thumb) ex.thumb = e.thumb;
         if (novas) { merged++; sigs += novas; }
       }, this);
