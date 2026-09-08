@@ -564,8 +564,8 @@
     return o;
   }
 
-  function renderOutput() {
-    var imgs = $('sumAll').checked ? state.images : [cur()];
+  function buildReport(sumAll) {
+    var imgs = sumAll ? state.images : [cur()];
     var order = [], map = {}, unknown = [], noqty = [];
 
     imgs.forEach(function (im, ii) {
@@ -587,25 +587,73 @@
       var m = map[id];
       return Cat.line(m.entry, m.some ? m.qty : null);
     });
-    $('output').textContent = lines.join('\n') || '(nada identificado ainda)';
-
     var w = [];
     if (unknown.length) w.push('Nao identificadas (' + unknown.length + '): ' + unknown.join(' | '));
     if (noqty.length) w.push('Sem quantidade (' + noqty.length + '): ' + noqty.join(' | '));
-    $('warn').textContent = w.join('\n');
-    $('warn').classList.toggle('hidden', !w.length);
+    return { text: lines.join('\n'), warn: w.join('\n'), count: lines.length };
   }
+
+  function renderOutput() {
+    var r = buildReport($('sumAll').checked);
+    $('output').textContent = r.text || '(nada identificado ainda)';
+    $('warn').textContent = r.warn;
+    $('warn').classList.toggle('hidden', !r.warn);
+    if (!$('reportModal').classList.contains('hidden')) fillReport();
+  }
+
+  function fillReport() {
+    var r = buildReport($('reportSumAll').checked);
+    $('reportText').textContent = r.text || '(nada identificado ainda)';
+    $('reportWarn').textContent = r.warn;
+    $('reportWarn').classList.toggle('hidden', !r.warn);
+    $('reportMsg').textContent = r.count ? r.count + ' item(ns)' : '';
+  }
+
+  function openReport() {
+    $('reportSumAll').checked = $('sumAll').checked;
+    fillReport();
+    $('reportModal').classList.remove('hidden');
+  }
+  function closeReport() {
+    $('reportModal').classList.add('hidden');
+    $('reportMsg').textContent = '';
+  }
+
+  $('btnReport').addEventListener('click', openReport);
+  $('btnReportClose').addEventListener('click', closeReport);
+  $('reportModal').addEventListener('click', function (e) {
+    if (e.target === this) closeReport();
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('reportModal').classList.contains('hidden')) closeReport();
+  });
+  $('reportSumAll').addEventListener('change', function () {
+    $('sumAll').checked = this.checked;
+    fillReport();
+    renderOutput();
+  });
+  $('btnReportCopy').addEventListener('click', function () {
+    copyText($('reportText').textContent, function () { $('reportMsg').textContent = 'copiado'; });
+  });
+  $('btnReportTxt').addEventListener('click', function () {
+    download('pedras.txt', $('reportText').textContent, 'text/plain');
+  });
 
   $('sumAll').addEventListener('change', renderOutput);
 
-  $('btnCopy').addEventListener('click', function () {
-    var t = $('output').textContent;
-    if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { status('copiado'); });
-    else {
+  function copyText(t, done) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(t).then(done, function () { fallback(); });
+    } else fallback();
+    function fallback() {
       var ta = document.createElement('textarea');
       ta.value = t; document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); ta.remove(); status('copiado');
+      document.execCommand('copy'); ta.remove(); done();
     }
+  }
+
+  $('btnCopy').addEventListener('click', function () {
+    copyText($('output').textContent, function () { status('copiado'); });
   });
 
   $('btnTxt').addEventListener('click', function () {

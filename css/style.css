@@ -75,6 +75,17 @@ input[type=number],input[type=text],select{background:var(--bg);color:var(--tx);
   padding:2px 8px;font-size:11px;cursor:pointer}
 .alts button:hover{color:var(--acc);border-color:var(--acc)}
 
+.modal{position:fixed;inset:0;background:rgba(4,7,12,.78);display:flex;align-items:center;
+  justify-content:center;padding:24px;z-index:50}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;
+  width:min(720px,100%);max-height:88vh;overflow:auto;box-shadow:0 18px 60px rgba(0,0,0,.55)}
+.modal-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.modal-head h2{margin:0;font-size:17px;flex:1}
+.modal-head .x{background:none;border:0;color:var(--dim);font-size:24px;line-height:1;cursor:pointer;padding:0 4px}
+.modal-head .x:hover{color:var(--tx)}
+.modal #reportText{font-size:14px;line-height:1.8;max-height:52vh;overflow:auto}
+.modal .toolbar{margin:12px 0 0}
+
 .batch{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px}
 .batch textarea{width:100%;background:#0a0d12;color:var(--tx);border:1px solid var(--line);border-radius:6px;
   padding:9px;font:13px/1.6 Consolas,"Courier New",monospace;resize:vertical}

@@ -32,6 +32,7 @@
       <button id="btnClearRegion" class="btn ghost">Área cheia</button>
       <button id="btnGrid" class="btn ghost">Ajustar grade</button>
       <button id="btnReanalyze" class="btn ghost">Reanalisar</button>
+      <button id="btnReport" class="btn">Relatório</button>
       <span class="spacer"></span>
       <label class="chk"><input type="checkbox" id="useOcr" checked> OCR automático</label>
       <span id="status" class="status"></span>
@@ -103,6 +104,23 @@
   </section>
 
 </main>
+
+<div id="reportModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Relatório</h2>
+      <button id="btnReportClose" class="x" title="fechar">×</button>
+    </div>
+    <pre id="reportText" class="output"></pre>
+    <div id="reportWarn" class="warn hidden"></div>
+    <div class="toolbar">
+      <button id="btnReportCopy" class="btn">Copiar</button>
+      <button id="btnReportTxt" class="btn ghost">Baixar .txt</button>
+      <label class="chk"><input type="checkbox" id="reportSumAll"> Somar todas as imagens</label>
+      <span id="reportMsg" class="status"></span>
+    </div>
+  </div>
+</div>
 
 <footer>PKA Stone Reader &middot; roda 100% no navegador, nenhuma imagem é enviada para servidor.</footer>
 
