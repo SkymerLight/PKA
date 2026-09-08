@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PKA Stone Reader</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>PKA <span>Stone Reader</span></h1>
+  <p>Jogue a print da bag do Poke Alliance e receba a lista de pedras com as quantidades.</p>
+</header>
+
+<main>
+
+  <section class="card" id="dropCard">
+    <div id="drop" class="drop">
+      <strong>Arraste a print aqui</strong>
+      <span>ou clique para escolher &middot; ou cole com <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+    </div>
+    <div id="strip" class="strip"></div>
+  </section>
+
+  <section class="card hidden" id="work">
+    <div class="toolbar">
+      <button id="btnAuto" class="btn">Detectar grade</button>
+      <button id="btnRegion" class="btn ghost">Selecionar área</button>
+      <button id="btnClearRegion" class="btn ghost">Área cheia</button>
+      <button id="btnGrid" class="btn ghost">Ajustar grade</button>
+      <button id="btnReanalyze" class="btn ghost">Reanalisar</button>
+      <span class="spacer"></span>
+      <label class="chk"><input type="checkbox" id="useOcr" checked> OCR automático</label>
+      <span id="status" class="status"></span>
+    </div>
+
+    <div class="gridbox hidden" id="gridbox">
+      <label>X <input type="number" id="gx" step="1"></label>
+      <label>Y <input type="number" id="gy" step="1"></label>
+      <label>Largura célula <input type="number" id="gpx" step="1"></label>
+      <label>Altura célula <input type="number" id="gpy" step="1"></label>
+      <label>Colunas <input type="number" id="gcols" step="1" min="1"></label>
+      <label>Linhas <input type="number" id="grows" step="1" min="1"></label>
+      <label>Tolerância <input type="range" id="thr" min="0.04" max="0.40" step="0.01"> <b id="thrv"></b></label>
+    </div>
+
+    <div class="canvaswrap"><canvas id="cv"></canvas></div>
+  </section>
+
+  <section class="card hidden" id="cellsCard">
+    <h2>Células <small id="cellsInfo"></small></h2>
+    <p class="hint">Verde = pronto &middot; amarelo = confira a quantidade &middot; vermelho = pedra desconhecida, clique em <b>Registrar</b>.
+       O app só memoriza os números que <b>você</b> digita: depois de confirmar cada dígito uma vez, a leitura passa a ser instantânea e offline.</p>
+    <div id="cells" class="cells"></div>
+  </section>
+
+  <section class="card hidden" id="outCard">
+    <h2>Resultado</h2>
+    <div class="toolbar">
+      <label class="chk"><input type="checkbox" id="sumAll"> Somar todas as imagens</label>
+      <span class="spacer"></span>
+      <button id="btnCopy" class="btn">Copiar</button>
+      <button id="btnTxt" class="btn ghost">Baixar .txt</button>
+    </div>
+    <div id="warn" class="warn hidden"></div>
+    <pre id="output" class="output"></pre>
+  </section>
+
+  <section class="card">
+    <h2>Catálogo <small id="catInfo"></small></h2>
+    <p class="hint">Tudo que você registrar fica salvo no navegador. Exporte o JSON e substitua <code>data/catalog.json</code> no repositório para que o catálogo vá junto com o site.</p>
+    <div class="toolbar">
+      <button id="btnExport" class="btn">Exportar JSON</button>
+      <button id="btnImport" class="btn ghost">Importar JSON</button>
+      <button id="btnRepo" class="btn ghost">Recarregar do repositório</button>
+      <button id="btnWipe" class="btn danger">Limpar catálogo</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+    <div id="catalog" class="catalog"></div>
+  </section>
+
+</main>
+
+<footer>PKA Stone Reader &middot; roda 100% no navegador, nenhuma imagem é enviada para servidor.</footer>
+
+<script src="js/vision.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
