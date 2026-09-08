@@ -28,6 +28,7 @@
     <div class="toolbar">
       <button id="btnAuto" class="btn">Detectar grade</button>
       <button id="btnRegion" class="btn ghost">Selecionar área</button>
+      <button id="btnMark" class="btn ghost">Marcar grade</button>
       <button id="btnClearRegion" class="btn ghost">Área cheia</button>
       <button id="btnGrid" class="btn ghost">Ajustar grade</button>
       <button id="btnReanalyze" class="btn ghost">Reanalisar</button>
@@ -37,6 +38,7 @@
     </div>
 
     <div class="gridbox hidden" id="gridbox">
+      <span class="hint" style="flex-basis:100%;margin:0">Com <b>Marcar grade</b>: arraste do canto superior esquerdo do primeiro slot até o canto inferior direito do último, depois acerte Colunas e Linhas aqui.</span>
       <label>X <input type="number" id="gx" step="1"></label>
       <label>Y <input type="number" id="gy" step="1"></label>
       <label>Largura célula <input type="number" id="gpx" step="1"></label>
@@ -53,6 +55,22 @@
     <h2>Células <small id="cellsInfo"></small></h2>
     <p class="hint">Verde = pronto &middot; amarelo = confira a quantidade &middot; vermelho = pedra desconhecida, clique em <b>Registrar</b>.
        O app só memoriza os números que <b>você</b> digita: depois de confirmar cada dígito uma vez, a leitura passa a ser instantânea e offline.</p>
+    <div class="toolbar">
+      <button id="btnBatch" class="btn ghost">Cadastrar pela lista</button>
+    </div>
+    <div id="batchBox" class="batch hidden">
+      <p class="hint">Cole a lista de pedras na <b>ordem de leitura</b> (esquerda para a direita, de cima para baixo).
+         Uma pedra por linha, no formato <code>6 Common Flying Stones (+11 a +15)</code>.
+         Linhas que não seguirem o formato são ignoradas, então pode colar com títulos no meio.</p>
+      <textarea id="batchText" rows="8" placeholder="6 Common Flying Stones (+11 a +15)
+4 Common Poison Stones (+11 a +15)
+8 Common Normal Stones (+11 a +15)"></textarea>
+      <div class="toolbar">
+        <button id="btnBatchApply" class="btn">Aplicar</button>
+        <button id="btnBatchCancel" class="btn ghost">Cancelar</button>
+        <span id="batchInfo" class="status"></span>
+      </div>
+    </div>
     <div id="cells" class="cells"></div>
   </section>
 

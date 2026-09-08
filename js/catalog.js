@@ -160,5 +160,58 @@
     }
   };
   function r3(v) { return Math.round(v * 1000) / 1000; }
+
+  Catalog.update = function (id, data) {
+    var e = this.byId(id);
+    if (!e) return null;
+    if (data.customName) {
+      e.customName = data.customName;
+      e.tier = ''; e.element = '';
+      e.range = data.range || '';
+    } else {
+      e.customName = '';
+      e.tier = data.tier || e.tier;
+      e.element = data.element || e.element;
+      e.range = data.range || rangeOf(e.tier);
+    }
+    if (data.kind) e.kind = data.kind;
+    this.save();
+    return e;
+  };
+
+  Catalog.findByLabel = function (label) {
+    for (var i = 0; i < this.entries.length; i++) {
+      if (this.label(this.entries[i]) === label) return this.entries[i];
+    }
+    return null;
+  };
+
+  function canon(word, list) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].toLowerCase() === word.toLowerCase()) return list[i];
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }
+
+  P.parseList = function (text) {
+    var tiers = P.TIERS.map(function (t) { return t.name; });
+    var re = new RegExp('^\\s*(\\d+)?\\s*(' + tiers.join('|') +
+      ')\\s+([A-Za-z]+)\\s+Stones?\\s*(?:\\(([^)]*)\\))?\\s*$', 'i');
+    var items = [], ignored = [];
+    String(text || '').split(/\r?\n/).forEach(function (line) {
+      if (!line.trim()) return;
+      var m = line.match(re);
+      if (m) {
+        items.push({
+          qty: m[1] ? parseInt(m[1], 10) : null,
+          tier: canon(m[2], tiers),
+          element: canon(m[3], P.ELEMENTS),
+          range: (m[4] || '').trim()
+        });
+      } else ignored.push(line.trim());
+    });
+    return { items: items, ignored: ignored };
+  };
+
   P.Catalog = Catalog;
 })(window.PKA);

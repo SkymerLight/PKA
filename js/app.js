@@ -8,7 +8,7 @@
     active: -1,
     tol: 0.16,
     dragging: null,
-    regionMode: false
+    mode: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -114,9 +114,24 @@
     $('gcols').value = g.cols; $('grows').value = g.rows;
   }
 
+  function applyMark() {
+    var im = cur();
+    if (!im || !im.mark) return;
+    var cols = Math.max(1, +$('gcols').value || 1);
+    var rows = Math.max(1, +$('grows').value || 1);
+    im.grid = {
+      x: im.mark.x, y: im.mark.y,
+      pw: im.mark.w / cols, ph: im.mark.h / rows,
+      cols: cols, rows: rows
+    };
+    fillGridInputs(im.grid);
+    analyze();
+  }
+
   function readGridInputs() {
     var im = cur();
     if (!im) return;
+    im.mark = null;
     im.grid = {
       x: +$('gx').value || 0, y: +$('gy').value || 0,
       pw: Math.max(8, +$('gpx').value || 32), ph: Math.max(8, +$('gpy').value || 32),
@@ -124,8 +139,14 @@
     };
     analyze();
   }
-  ['gx', 'gy', 'gpx', 'gpy', 'gcols', 'grows'].forEach(function (id) {
+  ['gx', 'gy', 'gpx', 'gpy'].forEach(function (id) {
     $(id).addEventListener('change', readGridInputs);
+  });
+  ['gcols', 'grows'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var im = cur();
+      if (im && im.mark) applyMark(); else readGridInputs();
+    });
   });
 
   $('thr').value = state.tol; $('thrv').textContent = state.tol.toFixed(2);
@@ -139,13 +160,27 @@
   $('btnGrid').addEventListener('click', function () { $('gridbox').classList.toggle('hidden'); });
   $('btnReanalyze').addEventListener('click', analyze);
   $('btnRegion').addEventListener('click', function () {
-    state.regionMode = !state.regionMode;
-    this.classList.toggle('on', state.regionMode);
-    status(state.regionMode ? 'arraste sobre a area da bag' : '');
+    state.mode = state.mode === 'region' ? null : 'region';
+    syncModeButtons();
+    status(state.mode === 'region' ? 'arraste em volta da area da bag' : '');
   });
+  $('btnMark').addEventListener('click', function () {
+    state.mode = state.mode === 'mark' ? null : 'mark';
+    syncModeButtons();
+    if (state.mode === 'mark') {
+      $('gridbox').classList.remove('hidden');
+      status('arraste do canto superior esquerdo do PRIMEIRO slot ate o canto inferior direito do ULTIMO');
+    } else status('');
+  });
+  function syncModeButtons() {
+    $('btnRegion').classList.toggle('on', state.mode === 'region');
+    $('btnMark').classList.toggle('on', state.mode === 'mark');
+  }
   $('btnClearRegion').addEventListener('click', function () {
     var im = cur(); if (!im) return;
-    im.region = null; autoDetect();
+    im.region = null; im.mark = null;
+    state.mode = null; syncModeButtons();
+    autoDetect();
   });
 
   function analyze() {
@@ -325,7 +360,7 @@
   }
 
   cv.addEventListener('mousedown', function (e) {
-    if (!state.regionMode) return;
+    if (!state.mode) return;
     var p = canvasPos(e);
     state.dragging = { sx: p.x, sy: p.y, x: p.x, y: p.y, w: 0, h: 0 };
   });
@@ -336,15 +371,27 @@
     d.w = Math.abs(p.x - d.sx); d.h = Math.abs(p.y - d.sy);
     drawCanvas();
   });
-  window.addEventListener('mouseup', function () {
+  window.addEventListener('mouseup', function (e) {
     if (!state.dragging) return;
     var d = state.dragging, im = cur();
+    if (e && typeof e.clientX === 'number') {
+      var p = canvasPos(e);
+      d.x = Math.min(d.sx, p.x); d.y = Math.min(d.sy, p.y);
+      d.w = Math.abs(p.x - d.sx); d.h = Math.abs(p.y - d.sy);
+    }
     state.dragging = null;
-    if (im && d.w > 30 && d.h > 30) {
-      im.region = { x: d.x, y: d.y, w: d.w, h: d.h };
-      state.regionMode = false;
-      $('btnRegion').classList.remove('on');
-      autoDetect();
+    if (im && d.w > 20 && d.h > 20) {
+      if (state.mode === 'mark') {
+        im.mark = { x: d.x, y: d.y, w: d.w, h: d.h };
+        im.region = null;
+        state.mode = null; syncModeButtons();
+        applyMark();
+      } else {
+        im.region = { x: d.x, y: d.y, w: d.w, h: d.h };
+        im.mark = null;
+        state.mode = null; syncModeButtons();
+        autoDetect();
+      }
     } else drawCanvas();
   });
 
@@ -574,6 +621,89 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
 
+  $('btnBatch').addEventListener('click', function () {
+    $('batchBox').classList.toggle('hidden');
+    if (!$('batchBox').classList.contains('hidden')) $('batchText').focus();
+  });
+  $('btnBatchCancel').addEventListener('click', function () {
+    $('batchBox').classList.add('hidden');
+    $('batchInfo').textContent = '';
+  });
+  $('btnBatchApply').addEventListener('click', function () {
+    var im = cur();
+    if (!im) return;
+    var parsed = P.parseList($('batchText').value);
+    var cells = (im.cells || []).filter(function (c) { return !c.empty; });
+    if (!parsed.items.length) {
+      $('batchInfo').textContent = 'nenhuma linha reconhecida - use o formato "6 Common Flying Stones (+11 a +15)"';
+      return;
+    }
+    var n = Math.min(parsed.items.length, cells.length);
+    for (var i = 0; i < n; i++) {
+      var it = parsed.items[i], cell = cells[i];
+      var label = it.tier + ' ' + it.element + ' Stone';
+      var e = Cat.findByLabel(label);
+      if (e) Cat.addSig(e.id, cell.feat);
+      else e = Cat.add({ kind: 'stone', tier: it.tier, element: it.element, range: it.range },
+                       cell.feat, thumbOf(cell).toDataURL('image/png'));
+      if (it.qty !== null) {
+        cell.qty = String(it.qty);
+        cell.qtySrc = 'manual';
+        cell.qtyConf = 100;
+        P.learnDigits(cell.res.digits.map(function (d) { return d.bmp; }), String(it.qty));
+      }
+    }
+    var msg = n + ' pedra(s) cadastrada(s)';
+    if (parsed.items.length !== cells.length) {
+      msg += ' - ATENCAO: ' + parsed.items.length + ' linhas para ' +
+             cells.length + ' celulas com item, confira o alinhamento da grade';
+    }
+    if (parsed.ignored.length) msg += ' - ' + parsed.ignored.length + ' linha(s) ignorada(s)';
+    $('batchInfo').textContent = msg;
+    rematchAll(); renderCells(); renderOutput(); drawCanvas(); renderCatalog();
+  });
+
+  function editEntry(e, card) {
+    card.innerHTML = '';
+    var f = document.createElement('div');
+    f.className = 'form';
+    f.style.width = '100%';
+
+    var selTier = document.createElement('select');
+    selTier.appendChild(opt('', 'Tier...'));
+    P.TIERS.forEach(function (t) { selTier.appendChild(opt(t.name, t.name + ' (' + t.range + ')')); });
+    selTier.value = e.tier || '';
+
+    var selEl = document.createElement('select');
+    selEl.appendChild(opt('', 'Elemento...'));
+    P.ELEMENTS.forEach(function (x) { selEl.appendChild(opt(x, x)); });
+    selEl.value = e.element || '';
+
+    var custom = document.createElement('input');
+    custom.type = 'text';
+    custom.placeholder = 'ou nome livre';
+    custom.value = e.customName || '';
+
+    var row = document.createElement('div');
+    row.className = 'row';
+    var save = document.createElement('button');
+    save.className = 'btn mini'; save.textContent = 'Salvar';
+    var can = document.createElement('button');
+    can.className = 'btn ghost mini'; can.textContent = 'Cancelar';
+    row.appendChild(save); row.appendChild(can);
+
+    save.addEventListener('click', function () {
+      if (custom.value.trim()) Cat.update(e.id, { customName: custom.value.trim() });
+      else if (selTier.value && selEl.value) Cat.update(e.id, { tier: selTier.value, element: selEl.value });
+      else { alert('Escolha tier + elemento, ou digite um nome livre.'); return; }
+      rematchAll(); renderCells(); renderOutput(); renderCatalog();
+    });
+    can.addEventListener('click', renderCatalog);
+
+    f.appendChild(selTier); f.appendChild(selEl); f.appendChild(custom); f.appendChild(row);
+    card.appendChild(f);
+  }
+
   function renderCatalog() {
     var box = $('catalog');
     box.innerHTML = '';
@@ -595,6 +725,9 @@
       var s = document.createElement('span');
       s.textContent = (e.range || '') + ' - ' + e.sigs.length + ' amostra(s)';
       t.appendChild(b); t.appendChild(s);
+      var ed = document.createElement('button');
+      ed.className = 'x'; ed.textContent = '✎'; ed.title = 'editar';
+      ed.addEventListener('click', function () { editEntry(e, d); });
       var x = document.createElement('button');
       x.className = 'x'; x.textContent = 'x'; x.title = 'remover';
       x.addEventListener('click', function () {
@@ -602,7 +735,7 @@
         Cat.remove(e.id);
         rematchAll(); renderCells(); renderOutput(); drawCanvas(); renderCatalog();
       });
-      d.appendChild(c); d.appendChild(t); d.appendChild(x);
+      d.appendChild(c); d.appendChild(t); d.appendChild(ed); d.appendChild(x);
       box.appendChild(d);
     });
   }
