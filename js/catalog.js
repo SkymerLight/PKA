@@ -3,12 +3,47 @@
 
   var KEY = 'pka_catalog_v1';
 
-  P.TIERS = [
+  var TKEY = 'pka_tiers_v1';
+
+  var TIERS_PADRAO = [
     { name: 'Novice',    range: '+0 a +5' },
     { name: 'Elemental', range: '+6 a +10' },
     { name: 'Common',    range: '+11 a +15' },
-    { name: 'Enhanced',  range: '+16 a +20' }
+    { name: 'Enhanced',  range: '+16 a +20' },
+    { name: 'Potent',    range: '+21 a +25' }
   ];
+
+  P.TIERS = TIERS_PADRAO.map(function (t) { return { name: t.name, range: t.range }; });
+
+  P.loadTiers = function () {
+    try {
+      var raw = JSON.parse(localStorage.getItem(TKEY) || 'null');
+      if (raw && Array.isArray(raw) && raw.length) {
+        P.TIERS = raw.filter(function (t) { return t && t.name; })
+          .map(function (t) { return { name: String(t.name), range: String(t.range || '') }; });
+      }
+    } catch (e) {}
+    return P.TIERS;
+  };
+
+  P.saveTiers = function (list) {
+    var limpo = (list || []).filter(function (t) { return t && String(t.name).trim(); })
+      .map(function (t) { return { name: String(t.name).trim(), range: String(t.range || '').trim() }; });
+    if (!limpo.length) return P.TIERS;
+    P.TIERS = limpo;
+    try { localStorage.setItem(TKEY, JSON.stringify(limpo)); } catch (e) {}
+    Catalog.entries.forEach(function (e) {
+      if (e.customName || !e.tier) return;
+      var r = rangeOf(e.tier);
+      if (r) e.range = r;
+    });
+    Catalog.save();
+    return P.TIERS;
+  };
+
+  P.resetTiers = function () {
+    return P.saveTiers(TIERS_PADRAO.map(function (t) { return { name: t.name, range: t.range }; }));
+  };
 
   P.ELEMENTS = ['Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting',
     'Poison', 'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon',
@@ -130,6 +165,7 @@
       return JSON.stringify({
         version: 1,
         savedAt: new Date().toISOString(),
+        tiers: P.TIERS,
         digits: P.digitExport(),
         entries: this.entries.map(function (e) {
           var c = JSON.parse(JSON.stringify(e));
@@ -144,19 +180,35 @@
       }, null, 1);
     },
     importJSON: function (obj, mode) {
-      if (!obj || !Array.isArray(obj.entries)) return 0;
+      if (!obj || !Array.isArray(obj.entries)) return { added: 0, merged: 0, sigs: 0 };
       if (mode === 'replace') this.entries = [];
-      var have = {};
-      this.entries.forEach(function (e) { have[e.id] = 1; });
-      var added = 0;
+      var added = 0, merged = 0, sigs = 0;
       obj.entries.forEach(function (e) {
-        if (!e || !e.id || have[e.id]) return;
+        if (!e || !e.id) return;
         if (!Array.isArray(e.sigs)) e.sigs = [];
-        this.entries.push(e); added++;
+        var ex = this.byId(e.id);
+        if (!ex) { this.entries.push(e); added++; return; }
+        var novas = 0;
+        e.sigs.forEach(function (s) {
+          var dup = ex.sigs.some(function (o) { return featDist(o, s) < 0.03; });
+          if (!dup) { ex.sigs.push(s); novas++; }
+        });
+        if (ex.sigs.length > 12) ex.sigs = ex.sigs.slice(-12);
+        if (!ex.thumb && e.thumb) ex.thumb = e.thumb;
+        if (novas) { merged++; sigs += novas; }
       }, this);
       if (obj.digits) P.digitImport(obj.digits);
+      if (Array.isArray(obj.tiers) && obj.tiers.length) {
+        var nomes = {};
+        P.TIERS.forEach(function (t) { nomes[t.name] = 1; });
+        var novos = P.TIERS.slice();
+        obj.tiers.forEach(function (t) {
+          if (t && t.name && !nomes[t.name]) novos.push({ name: t.name, range: t.range || '' });
+        });
+        if (novos.length !== P.TIERS.length) P.saveTiers(novos);
+      }
       this.save();
-      return added;
+      return { added: added, merged: merged, sigs: sigs };
     }
   };
   function r3(v) { return Math.round(v * 1000) / 1000; }

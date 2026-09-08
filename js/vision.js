@@ -363,7 +363,14 @@ window.PKA = window.PKA || {};
     var t = loadTpl();
     for (var k in obj) {
       if (!/^[0-9]$/.test(k) || !Array.isArray(obj[k])) continue;
-      t[k] = (t[k] || []).concat(obj[k]).slice(-10);
+      if (!t[k]) t[k] = [];
+      for (var i = 0; i < obj[k].length; i++) {
+        var b = obj[k][i];
+        if (!Array.isArray(b)) continue;
+        var dup = t[k].some(function (o) { return bmpDist(o, b) < 0.05; });
+        if (!dup) t[k].push(b);
+      }
+      if (t[k].length > 10) t[k] = t[k].slice(-10);
     }
     saveTpl();
   };

@@ -33,17 +33,37 @@
           data: data, grid: null, region: null, cells: []
         });
         URL.revokeObjectURL(url);
-        if (--pending === 0) {
-          setActive(state.images.length - 1);
-          renderStrip();
-        }
+        if (--pending === 0) prepararTodas();
       };
       im.onerror = function () {
         URL.revokeObjectURL(url);
-        if (--pending === 0) { setActive(state.images.length - 1); renderStrip(); }
+        if (--pending === 0) prepararTodas();
       };
       im.src = url;
     });
+  }
+
+  function prepararTodas() {
+    var pendentes = state.images.filter(function (im) { return !im.cells || !im.cells.length; });
+    if (!pendentes.length) { setActive(state.images.length - 1); renderStrip(); return; }
+    $('work').classList.remove('hidden');
+    status('analisando ' + pendentes.length + ' imagem(ns)...');
+    var i = 0;
+    (function passo() {
+      if (i >= pendentes.length) {
+        rematchAll();
+        setActive(state.images.length - 1);
+        renderStrip();
+        status(state.images.length + ' imagem(ns) prontas');
+        return;
+      }
+      var im = pendentes[i++];
+      setTimeout(function () {
+        if (prepararImagem(im) < 0) im.falhou = true;
+        status('analisando ' + i + '/' + pendentes.length + '...');
+        passo();
+      }, 5);
+    })();
   }
 
   $('drop').addEventListener('click', function () { $('file').click(); });
@@ -92,7 +112,12 @@
     cv.width = im.w; cv.height = im.h;
     $('work').classList.remove('hidden');
     renderStrip();
-    if (!im.grid) autoDetect(); else { drawCanvas(); renderCells(); renderOutput(); }
+    if (!im.grid) autoDetect();
+    else {
+      fillGridInputs(im.grid);
+      drawCanvas(); renderCells(); renderOutput();
+      maybeOcr();
+    }
   }
 
   function autoDetect() {
@@ -103,8 +128,14 @@
       var g = P.detectGrid(im.data, im.region);
       if (!g) { status('nao consegui detectar a grade - ajuste na mao'); $('gridbox').classList.remove('hidden'); drawCanvas(); return; }
       im.grid = g;
-      fillGridInputs(g);
-      analyze();
+      var known = analisarImagem(im);
+      rematchAll();
+      if (im === cur()) {
+        fillGridInputs(g);
+        drawCanvas(); renderCells(); renderOutput();
+        status(known + ' celulas com item');
+        maybeOcr();
+      }
     }, 10);
   }
 
@@ -183,38 +214,55 @@
     autoDetect();
   });
 
+  function analisarImagem(im) {
+    if (!im || !im.grid) return 0;
+    var g = im.grid, cells = [];
+    for (var r = 0; r < g.rows; r++) {
+      for (var c = 0; c < g.cols; c++) {
+        var rect = { x: g.x + c * g.pw, y: g.y + r * g.ph, w: g.pw, h: g.ph };
+        if (rect.x + rect.w > im.w || rect.y + rect.h > im.h) continue;
+        var res = P.analyzeCell(im.data, rect);
+        if (!res) continue;
+        var cell = {
+          r: r, c: c, rect: rect, res: res,
+          empty: !!res.empty,
+          feat: res.feat || null,
+          qty: '', qtySrc: '', qtyConf: 0,
+          match: null
+        };
+        if (!cell.empty) {
+          var d = P.readDigits(res.digits);
+          if (d) { cell.qty = String(parseInt(d.text, 10)); cell.qtySrc = 'auto'; cell.qtyConf = 100; }
+        }
+        cells.push(cell);
+      }
+    }
+    im.cells = cells;
+    return cells.filter(function (x) { return !x.empty; }).length;
+  }
+
+  function prepararImagem(im) {
+    if (!im) return 0;
+    if (!im.grid) {
+      var g = P.detectGrid(im.data, im.region);
+      if (!g) return -1;
+      im.grid = g;
+    }
+    return analisarImagem(im);
+  }
+
   function analyze() {
     var im = cur();
     if (!im || !im.grid) return;
     status('analisando celulas...');
     setTimeout(function () {
-      var g = im.grid, cells = [];
-      for (var r = 0; r < g.rows; r++) {
-        for (var c = 0; c < g.cols; c++) {
-          var rect = { x: g.x + c * g.pw, y: g.y + r * g.ph, w: g.pw, h: g.ph };
-          if (rect.x + rect.w > im.w || rect.y + rect.h > im.h) continue;
-          var res = P.analyzeCell(im.data, rect);
-          if (!res) continue;
-          var cell = {
-            r: r, c: c, rect: rect, res: res,
-            empty: !!res.empty,
-            feat: res.feat || null,
-            qty: '', qtySrc: '', qtyConf: 0,
-            match: null
-          };
-          if (!cell.empty) {
-            var d = P.readDigits(res.digits);
-            if (d) { cell.qty = String(parseInt(d.text, 10)); cell.qtySrc = 'auto'; cell.qtyConf = 100; }
-          }
-          cells.push(cell);
-        }
-      }
-      im.cells = cells;
+      var known = analisarImagem(im);
       rematchAll();
-      drawCanvas(); renderCells(); renderOutput();
-      var known = cells.filter(function (x) { return !x.empty; }).length;
-      status(known + ' celulas com item');
-      maybeOcr();
+      if (im === cur()) {
+        drawCanvas(); renderCells(); renderOutput();
+        status(known + ' celulas com item');
+        maybeOcr();
+      }
     }, 10);
   }
 
@@ -395,8 +443,8 @@
     } else drawCanvas();
   });
 
-  function thumbOf(cell) {
-    var im = cur(), c = document.createElement('canvas');
+  function thumbOf(cell, img) {
+    var im = img || cur(), c = document.createElement('canvas');
     c.width = 52; c.height = 52;
     c.getContext('2d').drawImage(im.el, cell.rect.x, cell.rect.y, cell.rect.w, cell.rect.h, 0, 0, 52, 52);
     return c;
@@ -677,29 +725,18 @@
     $('batchBox').classList.add('hidden');
     $('batchInfo').textContent = '';
   });
-  $('btnBatchApply').addEventListener('click', function () {
-    var im = cur();
-    if (!im) return;
-    var parsed = P.parseList($('batchText').value);
-    var todas = (im.cells || []).filter(function (c) { return !c.empty; });
-    var soNovas = $('batchOnlyNew').checked;
+  function aplicarLote(imx, itens, soNovas) {
+    var todas = (imx.cells || []).filter(function (c) { return !c.empty; });
     var cells = soNovas ? todas.filter(function (c) { return !(c.match && c.match.entry); }) : todas;
-    if (!parsed.items.length) {
-      $('batchInfo').textContent = 'nenhuma linha reconhecida - use o formato "6 Common Flying Stones (+11 a +15)"';
-      return;
-    }
-    if (!cells.length) {
-      $('batchInfo').textContent = 'nenhuma celula nao identificada nesta imagem';
-      return;
-    }
-    var n = Math.min(parsed.items.length, cells.length);
+    if (!cells.length) return { n: 0, alvo: 0 };
+    var n = Math.min(itens.length, cells.length);
     for (var i = 0; i < n; i++) {
-      var it = parsed.items[i], cell = cells[i];
+      var it = itens[i], cell = cells[i];
       var label = it.tier + ' ' + it.element + ' Stone';
       var e = Cat.findByLabel(label);
       if (e) Cat.addSig(e.id, cell.feat);
       else e = Cat.add({ kind: 'stone', tier: it.tier, element: it.element, range: it.range },
-                       cell.feat, thumbOf(cell).toDataURL('image/png'));
+                       cell.feat, thumbOf(cell, imx).toDataURL('image/png'));
       if (it.qty !== null) {
         cell.qty = String(it.qty);
         cell.qtySrc = 'manual';
@@ -707,10 +744,38 @@
         P.learnDigits(cell.res.digits.map(function (d) { return d.bmp; }), String(it.qty));
       }
     }
-    var msg = n + ' pedra(s) cadastrada(s)';
-    if (parsed.items.length !== cells.length) {
-      msg += ' - ATENCAO: ' + parsed.items.length + ' linhas para ' + cells.length +
-             (soNovas ? ' celulas nao identificadas' : ' celulas com item') +
+    return { n: n, alvo: cells.length };
+  }
+
+  $('btnBatchApply').addEventListener('click', function () {
+    var im = cur();
+    if (!im) return;
+    var parsed = P.parseList($('batchText').value);
+    if (!parsed.items.length) {
+      $('batchInfo').textContent = 'nenhuma linha reconhecida - use o formato "6 Common Flying Stones (+11 a +15)"';
+      return;
+    }
+    var soNovas = $('batchOnlyNew').checked;
+    var alvos = $('batchAllImages').checked ? state.images : [im];
+    var total = 0, avisos = [], usadas = 0;
+    alvos.forEach(function (imx) {
+      if (!imx || !imx.cells || !imx.cells.length) return;
+      rematchAll();
+      var r = aplicarLote(imx, parsed.items, soNovas);
+      if (!r.alvo) return;
+      usadas++;
+      total += r.n;
+      if (parsed.items.length !== r.alvo) {
+        avisos.push(imx.name + ' (' + parsed.items.length + ' linhas para ' + r.alvo + ')');
+      }
+    });
+    if (!total) {
+      $('batchInfo').textContent = soNovas ? 'nenhuma celula nao identificada' : 'nenhuma celula com item';
+      return;
+    }
+    var msg = total + ' cadastro(s) em ' + usadas + ' imagem(ns)';
+    if (avisos.length) {
+      msg += ' - ATENCAO, contagem diferente em: ' + avisos.join('; ') +
              ', confira a ordem e o alinhamento da grade';
     }
     if (parsed.ignored.length) msg += ' - ' + parsed.ignored.length + ' linha(s) ignorada(s)';
@@ -758,6 +823,62 @@
     f.appendChild(selTier); f.appendChild(selEl); f.appendChild(custom); f.appendChild(row);
     card.appendChild(f);
   }
+
+  function renderTiers() {
+    var box = $('tiers');
+    box.innerHTML = '';
+    P.TIERS.forEach(function (t, idx) {
+      var d = document.createElement('div');
+      d.className = 'tier';
+      var nm = document.createElement('input');
+      nm.type = 'text'; nm.className = 'nm'; nm.value = t.name; nm.placeholder = 'Tier';
+      var rg = document.createElement('input');
+      rg.type = 'text'; rg.className = 'rg'; rg.value = t.range; rg.placeholder = '+0 a +5';
+      var x = document.createElement('button');
+      x.className = 'x'; x.textContent = 'x'; x.title = 'remover';
+      x.addEventListener('click', function () {
+        var lista = lerTiers();
+        lista.splice(idx, 1);
+        P.saveTiers(lista);
+        renderTiers(); renderCatalog(); renderCells(); renderOutput();
+        $('tierMsg').textContent = 'removido';
+      });
+      d.appendChild(nm); d.appendChild(rg); d.appendChild(x);
+      box.appendChild(d);
+    });
+  }
+
+  function lerTiers() {
+    return [].map.call($('tiers').querySelectorAll('.tier'), function (d) {
+      return {
+        name: d.querySelector('.nm').value,
+        range: d.querySelector('.rg').value
+      };
+    });
+  }
+
+  $('btnTierAdd').addEventListener('click', function () {
+    var lista = lerTiers();
+    lista.push({ name: '', range: '' });
+    $('tiers').innerHTML = '';
+    P.TIERS = lista;
+    renderTiers();
+    var ins = $('tiers').querySelectorAll('.tier .nm');
+    if (ins.length) ins[ins.length - 1].focus();
+  });
+
+  $('btnTierSave').addEventListener('click', function () {
+    P.saveTiers(lerTiers());
+    renderTiers(); renderCatalog(); renderCells(); renderOutput();
+    $('tierMsg').textContent = P.TIERS.length + ' tiers salvos';
+  });
+
+  $('btnTierReset').addEventListener('click', function () {
+    if (!confirm('Voltar os tiers para o padrao do jogo?')) return;
+    P.resetTiers();
+    renderTiers(); renderCatalog(); renderCells(); renderOutput();
+    $('tierMsg').textContent = 'padrao restaurado';
+  });
 
   function renderCatalog() {
     var box = $('catalog');
@@ -807,7 +928,7 @@
     fr.onload = function () {
       try {
         var n = Cat.importJSON(JSON.parse(fr.result), 'merge');
-        status(n + ' entradas importadas');
+        status(resumoImport(n) || 'nada novo no arquivo');
         rematchAll(); renderCells(); renderOutput(); drawCanvas(); renderCatalog();
       } catch (err) { alert('JSON invalido'); }
     };
@@ -821,6 +942,13 @@
     rematchAll(); renderCells(); renderOutput(); drawCanvas(); renderCatalog();
   });
 
+  function resumoImport(n) {
+    var p = [];
+    if (n.added) p.push(n.added + ' pedra(s) nova(s)');
+    if (n.merged) p.push(n.sigs + ' amostra(s) somada(s) a ' + n.merged + ' pedra(s) que ja existiam');
+    return p.join(' - ');
+  }
+
   function loadRepoCatalog(force) {
     if (!force && Cat.entries.length) { renderCatalog(); return; }
     fetch('data/catalog.json', { cache: 'no-store' })
@@ -828,7 +956,8 @@
       .then(function (j) {
         if (!j) { renderCatalog(); return; }
         var n = Cat.importJSON(j, 'merge');
-        if (n) status(n + ' entradas carregadas do repositorio');
+        var msg = resumoImport(n);
+        if (msg) status(msg + ' (do repositorio)');
         rematchAll(); renderCells(); renderOutput(); drawCanvas(); renderCatalog();
       })
       .catch(function () { renderCatalog(); });
@@ -841,7 +970,9 @@
     if (t) statusTimer = setTimeout(function () { $('status').textContent = ''; }, 6000);
   }
 
+  P.loadTiers();
   Cat.load();
+  renderTiers();
   renderCatalog();
   loadRepoCatalog(false);
 

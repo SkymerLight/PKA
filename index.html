@@ -70,6 +70,7 @@
         <button id="btnBatchApply" class="btn">Aplicar</button>
         <button id="btnBatchCancel" class="btn ghost">Cancelar</button>
         <label class="chk"><input type="checkbox" id="batchOnlyNew"> Só as não identificadas</label>
+        <label class="chk"><input type="checkbox" id="batchAllImages"> Em todas as imagens carregadas</label>
         <span id="batchInfo" class="status"></span>
       </div>
       <p class="hint" style="margin:8px 0 0">Sem marcar: a lista tem que ter <b>todas</b> as células, inclusive as já cadastradas.
@@ -77,6 +78,11 @@
       <p class="hint" style="margin:6px 0 0">Se uma print vier com a bag em outro tamanho e as pedras conhecidas aparecerem
          como desconhecidas, cole a lista completa de novo nessa print: o app reconhece o nome, <b>não duplica</b> a pedra e
          guarda a captura nova como mais uma amostra dela. A partir daí as duas versões passam a ser reconhecidas.</p>
+      <p class="hint" style="margin:6px 0 0">Para treinar de uma vez: jogue <b>várias prints da mesma bag</b> (o brilho passando
+         pelas pedras muda a imagem, então quanto mais capturas, melhor), marque <b>Em todas as imagens carregadas</b> e cole a
+         lista uma única vez. Cada print vira uma amostra a mais de cada pedra.</p>
+      <p class="hint" style="margin:6px 0 0">O <code>(+11 a +15)</code> é <b>opcional</b> na lista: pode escrever só
+         <code>6 Common Flying Stones</code> que a faixa sai sozinha pelo tier.</p>
     </div>
     <div id="cells" class="cells"></div>
   </section>
@@ -95,7 +101,12 @@
 
   <section class="card">
     <h2>Catálogo <small id="catInfo"></small></h2>
-    <p class="hint">Tudo que você registrar fica salvo no navegador. Exporte o JSON e substitua <code>data/catalog.json</code> no repositório para que o catálogo vá junto com o site.</p>
+    <p class="hint">Tudo que você registra fica salvo neste navegador e vai <b>somando</b> sozinho: cada print
+       cadastrada vira mais uma amostra da mesma pedra (é o "N amostra(s)" de cada cartão). Não precisa exportar
+       entre uma print e outra — cadastre quantas quiser e exporte uma vez no fim.</p>
+    <p class="hint"><b>Exportar</b> baixa tudo num arquivo (é o backup, e é o que você copia para <code>data/catalog.json</code>
+       no repositório). <b>Importar</b> lê um arquivo e junta com o que já está aqui, somando as amostras sem duplicar pedra.
+       <b>Recarregar do repositório</b> faz o mesmo com o arquivo publicado no site. Só o <b>Limpar catálogo</b> apaga.</p>
     <div class="toolbar">
       <button id="btnExport" class="btn">Exportar JSON</button>
       <button id="btnImport" class="btn ghost">Importar JSON</button>
@@ -103,6 +114,18 @@
       <button id="btnWipe" class="btn danger">Limpar catálogo</button>
       <input type="file" id="importFile" accept="application/json" hidden>
     </div>
+    <h3 class="sub">Tiers e faixas</h3>
+    <p class="hint">O que você escrever aqui é o que aparece depois do nome no resultado. Mudar uma faixa
+       atualiza na hora todas as pedras daquele tier já cadastradas.</p>
+    <div id="tiers" class="tiers"></div>
+    <div class="toolbar">
+      <button id="btnTierAdd" class="btn ghost">Adicionar tier</button>
+      <button id="btnTierSave" class="btn">Salvar tiers</button>
+      <button id="btnTierReset" class="btn ghost">Restaurar padrão</button>
+      <span id="tierMsg" class="status"></span>
+    </div>
+
+    <h3 class="sub">Pedras</h3>
     <div id="catalog" class="catalog"></div>
   </section>
 

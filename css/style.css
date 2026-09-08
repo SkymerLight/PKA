@@ -96,6 +96,16 @@ input[type=number],input[type=text],select{background:var(--bg);color:var(--tx);
 .warn{background:#2a2213;border:1px solid #5a4a1e;color:var(--warn);border-radius:8px;padding:10px;
   margin-bottom:10px;font-size:13px}
 
+.sub{font-size:13px;color:var(--dim);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.6px}
+.tiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:10px}
+.tier{display:flex;gap:6px;align-items:center;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;padding:7px}
+.tier input{min-width:0}
+.tier .nm{flex:1.1}
+.tier .rg{flex:1}
+.tier .x{background:none;border:0;color:var(--dim);cursor:pointer;font-size:16px;padding:0 4px}
+.tier .x:hover{color:var(--bad)}
+
 .catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
 .cat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px;display:flex;gap:8px;align-items:center}
 .cat canvas{width:38px;height:38px;background:#0a0d12;border-radius:5px;image-rendering:pixelated;flex:0 0 auto}
