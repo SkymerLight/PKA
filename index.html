@@ -68,8 +68,11 @@
       <div class="toolbar">
         <button id="btnBatchApply" class="btn">Aplicar</button>
         <button id="btnBatchCancel" class="btn ghost">Cancelar</button>
+        <label class="chk"><input type="checkbox" id="batchOnlyNew"> Só as não identificadas</label>
         <span id="batchInfo" class="status"></span>
       </div>
+      <p class="hint" style="margin:8px 0 0">Sem marcar: a lista tem que ter <b>todas</b> as células, inclusive as já cadastradas.
+         Marcando: a lista vale só para as <b>vermelhas</b>, na ordem em que aparecem — use ao acrescentar pedras novas.</p>
     </div>
     <div id="cells" class="cells"></div>
   </section>

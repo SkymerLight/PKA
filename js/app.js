@@ -633,9 +633,15 @@
     var im = cur();
     if (!im) return;
     var parsed = P.parseList($('batchText').value);
-    var cells = (im.cells || []).filter(function (c) { return !c.empty; });
+    var todas = (im.cells || []).filter(function (c) { return !c.empty; });
+    var soNovas = $('batchOnlyNew').checked;
+    var cells = soNovas ? todas.filter(function (c) { return !(c.match && c.match.entry); }) : todas;
     if (!parsed.items.length) {
       $('batchInfo').textContent = 'nenhuma linha reconhecida - use o formato "6 Common Flying Stones (+11 a +15)"';
+      return;
+    }
+    if (!cells.length) {
+      $('batchInfo').textContent = 'nenhuma celula nao identificada nesta imagem';
       return;
     }
     var n = Math.min(parsed.items.length, cells.length);
@@ -655,8 +661,9 @@
     }
     var msg = n + ' pedra(s) cadastrada(s)';
     if (parsed.items.length !== cells.length) {
-      msg += ' - ATENCAO: ' + parsed.items.length + ' linhas para ' +
-             cells.length + ' celulas com item, confira o alinhamento da grade';
+      msg += ' - ATENCAO: ' + parsed.items.length + ' linhas para ' + cells.length +
+             (soNovas ? ' celulas nao identificadas' : ' celulas com item') +
+             ', confira a ordem e o alinhamento da grade';
     }
     if (parsed.ignored.length) msg += ' - ' + parsed.ignored.length + ' linha(s) ignorada(s)';
     $('batchInfo').textContent = msg;

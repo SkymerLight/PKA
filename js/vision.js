@@ -141,12 +141,12 @@ window.PKA = window.PKA || {};
     var pw = autoPitch(colC, rw), ph = autoPitch(rowC, rh);
     if (!pw || !ph) return null;
 
-    pw = refinePitch(colC, rw, pw);
-    ph = refinePitch(rowC, rh, ph);
+    pw = refinePitch(colP, rw, pw);
+    ph = refinePitch(rowP, rh, ph);
     if (Math.abs(pw - ph) / Math.max(pw, ph) < 0.18) {
       pw = ph = Math.round((pw + ph) * 10) / 20;
     }
-    var cc = combPhase(colC, rw, pw), cr = combPhase(rowC, rh, ph);
+    var cc = combPhase(colP, rw, pw), cr = combPhase(rowP, rh, ph);
 
     var cols = Math.min(cc.count, Math.floor((rw - cc.offset) / pw));
     var rows = Math.min(cr.count, Math.floor((rh - cr.offset) / ph));
