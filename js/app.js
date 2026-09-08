@@ -928,7 +928,9 @@
     fr.onload = function () {
       try {
         var n = Cat.importJSON(JSON.parse(fr.result), 'merge');
-        status(resumoImport(n) || 'nada novo no arquivo');
+        status(n.velho
+          ? 'arquivo de uma versao anterior do reconhecimento: vieram os nomes, mas as amostras foram descartadas'
+          : (resumoImport(n) || 'nada novo no arquivo'));
         rematchAll(); renderCells(); renderOutput(); drawCanvas(); renderCatalog();
       } catch (err) { alert('JSON invalido'); }
     };
@@ -974,6 +976,9 @@
   Cat.load();
   renderTiers();
   renderCatalog();
-  loadRepoCatalog(false);
+  if (Cat.desatualizado) {
+    status('o reconhecimento foi atualizado - recarregando o catalogo do repositorio');
+    loadRepoCatalog(true);
+  } else loadRepoCatalog(false);
 
 })(window.PKA);

@@ -2,6 +2,8 @@ window.PKA = window.PKA || {};
 (function (P) {
   'use strict';
 
+  P.SIG_VERSION = 2;
+
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   P.clamp = clamp;
 

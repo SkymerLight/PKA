@@ -76,17 +76,29 @@
   var Catalog = {
     entries: [],
 
+    desatualizado: false,
+
     load: function () {
       try {
         var raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-        if (raw && Array.isArray(raw.entries)) this.entries = raw.entries;
+        if (raw && Array.isArray(raw.entries)) {
+          this.entries = raw.entries;
+          if ((raw.sigVersion || 1) !== P.SIG_VERSION) {
+            this.entries.forEach(function (e) { e.sigs = []; });
+            P.digitClearAll();
+            this.desatualizado = true;
+            this.save();
+          }
+        }
       } catch (e) { this.entries = []; }
       return this.entries;
     },
 
     save: function () {
       try {
-        localStorage.setItem(KEY, JSON.stringify({ version: 1, entries: this.entries }));
+        localStorage.setItem(KEY, JSON.stringify({
+          version: 1, sigVersion: P.SIG_VERSION, entries: this.entries
+        }));
       } catch (e) {
         alert('Nao consegui salvar o catalogo no navegador (armazenamento cheio?).');
       }
@@ -164,6 +176,7 @@
     exportJSON: function () {
       return JSON.stringify({
         version: 1,
+        sigVersion: P.SIG_VERSION,
         savedAt: new Date().toISOString(),
         tiers: P.TIERS,
         digits: P.digitExport(),
@@ -180,12 +193,13 @@
       }, null, 1);
     },
     importJSON: function (obj, mode) {
-      if (!obj || !Array.isArray(obj.entries)) return { added: 0, merged: 0, sigs: 0 };
+      if (!obj || !Array.isArray(obj.entries)) return { added: 0, merged: 0, sigs: 0, velho: false };
       if (mode === 'replace') this.entries = [];
+      var velho = (obj.sigVersion || 1) !== P.SIG_VERSION;
       var added = 0, merged = 0, sigs = 0;
       obj.entries.forEach(function (e) {
         if (!e || !e.id) return;
-        if (!Array.isArray(e.sigs)) e.sigs = [];
+        if (!Array.isArray(e.sigs) || velho) e.sigs = [];
         var ex = this.byId(e.id);
         if (!ex) { this.entries.push(e); added++; return; }
         var novas = 0;
@@ -197,7 +211,7 @@
         if (!ex.thumb && e.thumb) ex.thumb = e.thumb;
         if (novas) { merged++; sigs += novas; }
       }, this);
-      if (obj.digits) P.digitImport(obj.digits);
+      if (obj.digits && !velho) P.digitImport(obj.digits);
       if (Array.isArray(obj.tiers) && obj.tiers.length) {
         var nomes = {};
         P.TIERS.forEach(function (t) { nomes[t.name] = 1; });
@@ -208,7 +222,7 @@
         if (novos.length !== P.TIERS.length) P.saveTiers(novos);
       }
       this.save();
-      return { added: added, merged: merged, sigs: sigs };
+      return { added: added, merged: merged, sigs: sigs, velho: velho };
     }
   };
   function r3(v) { return Math.round(v * 1000) / 1000; }
