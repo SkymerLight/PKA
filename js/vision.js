@@ -26,7 +26,9 @@ window.PKA = window.PKA || {};
 
   function combValues(prof, n, p, o) {
     var vals = [];
-    for (var x = o; x < n; x += p) {
+    for (var t = o; t < n; t += p) {
+      var x = Math.round(t);
+      if (x < 0 || x >= n) continue;
       var m = prof[x];
       if (x > 0 && prof[x - 1] > m) m = prof[x - 1];
       if (x + 1 < n && prof[x + 1] > m) m = prof[x + 1];
@@ -35,36 +37,63 @@ window.PKA = window.PKA || {};
     return vals;
   }
 
-  function bestPitch(prof, n) {
-    var minP = 14, maxP = Math.floor(n / 2);
-    if (maxP < minP) return 0;
-    var scores = new Float64Array(maxP + 1);
-    var best = 0, bestP = 0, p, o, vals, i;
-    for (p = minP; p <= maxP; p++) {
-      var bs = -1;
-      for (o = 0; o < p; o++) {
-        vals = combValues(prof, n, p, o);
-        if (vals.length < 3) continue;
-        var s = 0;
-        for (i = 0; i < vals.length; i++) s += vals[i];
-        var sc = s / vals.length;
-        if (sc > bs) bs = sc;
-      }
-      scores[p] = bs;
-      if (bs > best) { best = bs; bestP = p; }
+  function combMean(prof, n, p) {
+    var bs = -1;
+    for (var o = 0; o < Math.ceil(p); o++) {
+      var vals = combValues(prof, n, p, o);
+      if (vals.length < 3) continue;
+      var s = 0;
+      for (var i = 0; i < vals.length; i++) s += vals[i];
+      var sc = s / vals.length;
+      if (sc > bs) bs = sc;
     }
-    if (!bestP) return 0;
-    var thr = best * 0.90;
-    for (var q = minP; q <= bestP; q++) {
-      if (scores[q] >= thr) return q;
+    return bs;
+  }
+
+  function clipProfile(prof, n) {
+    var s = Array.prototype.slice.call(prof).sort(function (a, b) { return a - b; });
+    var cap = s[Math.min(n - 1, Math.floor(n * 0.90))];
+    var out = new Float64Array(n);
+    for (var i = 0; i < n; i++) out[i] = prof[i] < cap ? prof[i] : cap;
+    return out;
+  }
+
+  function autoPitch(prof, n) {
+    var minLag = 14, maxLag = Math.floor(n / 2), i, k, x;
+    if (maxLag < minLag) return 0;
+    var mean = 0;
+    for (i = 0; i < n; i++) mean += prof[i];
+    mean /= n;
+    var f = new Float64Array(n);
+    for (i = 0; i < n; i++) f[i] = prof[i] - mean;
+    var R = new Float64Array(maxLag + 1), best = -Infinity;
+    for (k = minLag; k <= maxLag; k++) {
+      var s = 0, c = 0;
+      for (x = 0; x + k < n; x++) { s += f[x] * f[x + k]; c++; }
+      R[k] = c ? s / c : 0;
+      if (R[k] > best) best = R[k];
     }
-    return bestP;
+    if (!(best > 0)) return 0;
+    for (k = minLag; k <= maxLag; k++) if (R[k] >= best * 0.90) return k;
+    return 0;
+  }
+
+  function refinePitch(prof, n, p) {
+    var best = p, bs = combMean(prof, n, p);
+    for (var d = -0.6; d <= 0.6001; d += 0.05) {
+      var q = p + d;
+      if (q < 13) continue;
+      var s = combMean(prof, n, q);
+      if (s > bs) { bs = s; best = q; }
+    }
+    return Math.round(best * 20) / 20;
   }
 
   function combPhase(prof, n, p) {
     var o, i, vals, ms = -1, bestMean = -1, o2 = 0;
-    var meds = new Float64Array(p), means = new Float64Array(p);
-    for (o = 0; o < p; o++) {
+    var np = Math.ceil(p);
+    var meds = new Float64Array(np), means = new Float64Array(np);
+    for (o = 0; o < np; o++) {
       vals = combValues(prof, n, p, o);
       if (vals.length < 3) continue;
       meds[o] = median(vals.slice());
@@ -73,7 +102,7 @@ window.PKA = window.PKA || {};
       means[o] = sm / vals.length;
       if (meds[o] > ms) ms = meds[o];
     }
-    for (o = 0; o < p; o++) {
+    for (o = 0; o < np; o++) {
       if (meds[o] >= ms * 0.98 && means[o] > bestMean) { bestMean = means[o]; o2 = o; }
     }
     vals = combValues(prof, n, p, o2);
@@ -107,13 +136,17 @@ window.PKA = window.PKA || {};
     for (x = 0; x < rw; x++) colP[x] /= rh;
     for (y = 0; y < rh; y++) rowP[y] /= rw;
 
-    var pw = bestPitch(colP, rw), ph = bestPitch(rowP, rh);
+    var colC = clipProfile(colP, rw), rowC = clipProfile(rowP, rh);
+
+    var pw = autoPitch(colC, rw), ph = autoPitch(rowC, rh);
     if (!pw || !ph) return null;
 
+    pw = refinePitch(colC, rw, pw);
+    ph = refinePitch(rowC, rh, ph);
     if (Math.abs(pw - ph) / Math.max(pw, ph) < 0.18) {
-      pw = ph = Math.round((pw + ph) / 2);
+      pw = ph = Math.round((pw + ph) * 10) / 20;
     }
-    var cc = combPhase(colP, rw, pw), cr = combPhase(rowP, rh, ph);
+    var cc = combPhase(colC, rw, pw), cr = combPhase(rowC, rh, ph);
 
     var cols = Math.min(cc.count, Math.floor((rw - cc.offset) / pw));
     var rows = Math.min(cr.count, Math.floor((rh - cr.offset) / ph));
