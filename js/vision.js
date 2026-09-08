@@ -1,4 +1,3 @@
-/* PKA Stone Reader - visao computacional (sem dependencias) */
 window.PKA = window.PKA || {};
 (function (P) {
   'use strict';
@@ -25,9 +24,6 @@ window.PKA = window.PKA || {};
     return arr[arr.length >> 1];
   }
 
-  /* ---------------- deteccao da grade ---------------- */
-
-  // Valores do perfil nas posicoes de um pente (passo p, fase o).
   function combValues(prof, n, p, o) {
     var vals = [];
     for (var x = o; x < n; x += p) {
@@ -39,7 +35,6 @@ window.PKA = window.PKA || {};
     return vals;
   }
 
-  // Passo (periodo) da grade: pontuado pela media das linhas do pente.
   function bestPitch(prof, n) {
     var minP = 14, maxP = Math.floor(n / 2);
     if (maxP < minP) return 0;
@@ -59,7 +54,6 @@ window.PKA = window.PKA || {};
       if (bs > best) { best = bs; bestP = p; }
     }
     if (!bestP) return 0;
-    // evita harmonicos (2x o passo real pontua parecido): pega o menor passo aceitavel
     var thr = best * 0.90;
     for (var q = minP; q <= bestP; q++) {
       if (scores[q] >= thr) return q;
@@ -67,10 +61,6 @@ window.PKA = window.PKA || {};
     return bestP;
   }
 
-  // Fase e quantidade de linhas, dado o passo.
-  // A MEDIANA decide a fase (assim uma barra de titulo ou rodape com bordas
-  // fortes nao puxa a grade para o lugar errado) e a MEDIA desempata entre
-  // as fases vizinhas que empatam na mediana.
   function combPhase(prof, n, p) {
     var o, i, vals, ms = -1, bestMean = -1, o2 = 0;
     var meds = new Float64Array(p), means = new Float64Array(p);
@@ -86,7 +76,6 @@ window.PKA = window.PKA || {};
     for (o = 0; o < p; o++) {
       if (meds[o] >= ms * 0.98 && means[o] > bestMean) { bestMean = means[o]; o2 = o; }
     }
-    // apara apenas as PONTAS fracas (linha fraca no meio nao corta a grade)
     vals = combValues(prof, n, p, o2);
     var lim = median(vals.slice()) * 0.45;
     var first = -1, last = -1;
@@ -121,8 +110,6 @@ window.PKA = window.PKA || {};
     var pw = bestPitch(colP, rw), ph = bestPitch(rowP, rh);
     if (!pw || !ph) return null;
 
-    // celulas sao quadradas na bag: se os eixos concordam, uniformiza o passo
-    // (a fase e calculada DEPOIS, ja com o passo final)
     if (Math.abs(pw - ph) / Math.max(pw, ph) < 0.18) {
       pw = ph = Math.round((pw + ph) / 2);
     }
@@ -139,13 +126,10 @@ window.PKA = window.PKA || {};
     };
   };
 
-  /* ---------------- analise de uma celula ---------------- */
+  var SH = 10;
+  var CG = 4;
+  var HB = 24;
 
-  var SH = 10;   // grade da mascara de forma
-  var CG = 4;    // grade de cor
-  var HB = 24;   // bins de matiz
-
-  // Componentes conectados dentro de uma mascara booleana WxH.
   function components(mask, w, h, minPx) {
     var seen = new Uint8Array(w * h), out = [], stack = [];
     for (var s = 0; s < w * h; s++) {
@@ -169,7 +153,6 @@ window.PKA = window.PKA || {};
     return out;
   }
 
-  // Normaliza um componente para um bitmap DW x DH usado no OCR proprio.
   var DW = 8, DH = 12;
   P.DW = DW; P.DH = DH;
 
@@ -192,41 +175,28 @@ window.PKA = window.PKA || {};
     return out;
   }
 
-  /**
-   * Analisa uma celula da grade.
-   * Retorna { empty:true } quando nao ha item.
-   */
   P.analyzeCell = function (img, rect) {
     var W = img.width, d = img.data;
     var mn = Math.min(rect.w, rect.h);
-    // regiao externa: quase a celula inteira, usada para achar os digitos
-    // (eles ficam colados no topo e sobrevivem a 1-2px de erro na grade)
     var padOut = Math.max(1, Math.round(mn * 0.02));
-    // regiao interna: recuada, usada para o fundo e para a pedra (exclui a borda do slot)
     var padIn = Math.max(padOut + 1, Math.round(mn * 0.10));
     var mg = padIn - padOut;
-
     var x0 = Math.round(rect.x) + padOut, y0 = Math.round(rect.y) + padOut;
     var cw = Math.round(rect.w) - 2 * padOut, ch = Math.round(rect.h) - 2 * padOut;
     var iw = cw - 2 * mg, ih = ch - 2 * mg;
     if (iw < 6 || ih < 6 || x0 < 0 || y0 < 0 || x0 + cw > img.width || y0 + ch > img.height) return null;
-
     var n = cw * ch, x, y, i, k, j, hsv;
     var R = new Uint8Array(n), G = new Uint8Array(n), B = new Uint8Array(n);
     for (y = 0; y < ch; y++) for (x = 0; x < cw; x++) {
       i = ((y0 + y) * W + (x0 + x)) * 4; k = y * cw + x;
       R[k] = d[i]; G[k] = d[i + 1]; B[k] = d[i + 2];
     }
-
-    // fundo = mediana do anel externo da regiao interna
     var rs = [], gs = [], bs = [];
     for (y = mg; y < ch - mg; y++) for (x = mg; x < cw - mg; x++) {
       if (x > mg + 1 && x < cw - mg - 2 && y > mg + 1 && y < ch - mg - 2) continue;
       k = y * cw + x; rs.push(R[k]); gs.push(G[k]); bs.push(B[k]);
     }
     var bg = [median(rs), median(gs), median(bs)];
-
-    // mascara de primeiro plano (o que difere do fundo) + pixels claros (texto)
     var fg = new Uint8Array(n), white = new Uint8Array(n);
     var FGT = 58;
     for (k = 0; k < n; k++) {
@@ -235,8 +205,6 @@ window.PKA = window.PKA || {};
       hsv = rgb2hsv(R[k], G[k], B[k]);
       if (hsv[2] > 0.70 && hsv[1] < 0.42 && dist > 70) white[k] = 1;
     }
-
-    // digitos da quantidade: componentes claros na parte de cima da celula
     var comps = components(white, cw, ch, Math.max(3, Math.round(n * 0.0012)));
     var digits = [], txt = new Uint8Array(n);
     comps.forEach(function (c) {
@@ -254,9 +222,6 @@ window.PKA = window.PKA || {};
     });
     digits.sort(function (a, b) { return a.x - b.x; });
 
-    // bloco da quantidade em resolucao ORIGINAL (sem normalizar): e isso que
-    // vai para o Tesseract, porque esticar cada digito para 8x12 deforma a
-    // forma e o OCR externo nao reconhece mais nada.
     var numBox = null;
     if (digits.length) {
       var nx0 = cw, ny0 = ch, nx1 = -1, ny1 = -1;
@@ -273,8 +238,6 @@ window.PKA = window.PKA || {};
       }
       numBox = { w: nw, h: nh, mask: nmask };
     }
-
-    // dilata a mascara de texto 1px para nao contaminar a assinatura da pedra
     var txt2 = new Uint8Array(n);
     for (y = 0; y < ch; y++) for (x = 0; x < cw; x++) {
       k = y * cw + x;
@@ -284,8 +247,6 @@ window.PKA = window.PKA || {};
         if (xx >= 0 && yy >= 0 && xx < cw && yy < ch) txt2[yy * cw + xx] = 1;
       }
     }
-
-    // a pedra so conta dentro da regiao interna (fora dela mora a borda do slot)
     var gem = new Uint8Array(n), gemCount = 0;
     for (y = mg; y < ch - mg; y++) for (x = mg; x < cw - mg; x++) {
       k = y * cw + x;
@@ -294,7 +255,6 @@ window.PKA = window.PKA || {};
     var inner = iw * ih;
     var coverage = gemCount / inner;
     if (gemCount < inner * 0.02) return { empty: true, digits: digits, cw: cw, ch: ch, ox: x0, oy: y0 };
-
     var bx0 = cw, by0 = ch, bx1 = -1, by1 = -1;
     for (y = 0; y < ch; y++) for (x = 0; x < cw; x++) if (gem[y * cw + x]) {
       if (x < bx0) bx0 = x;
@@ -303,13 +263,11 @@ window.PKA = window.PKA || {};
       if (y > by1) by1 = y;
     }
     var bw2 = bx1 - bx0 + 1, bh2 = by1 - by0 + 1;
-
     var shape = new Float32Array(SH * SH), scnt = new Float32Array(SH * SH);
     var cgR = new Float32Array(CG * CG), cgG = new Float32Array(CG * CG),
         cgB = new Float32Array(CG * CG), cgN = new Float32Array(CG * CG);
     var hue = new Float32Array(HB), hueSum = 0;
     var mr = 0, mg = 0, mb = 0;
-
     for (y = by0; y <= by1; y++) {
       var sy = Math.min(SH - 1, ((y - by0) * SH / bh2) | 0);
       var gy2 = Math.min(CG - 1, ((y - by0) * CG / bh2) | 0);
@@ -328,7 +286,6 @@ window.PKA = window.PKA || {};
         hueSum += wgt;
       }
     }
-
     var sh = [];
     for (j = 0; j < SH * SH; j++) sh.push(scnt[j] ? shape[j] / scnt[j] : 0);
     var hu = [];
@@ -338,7 +295,6 @@ window.PKA = window.PKA || {};
       if (cgN[j]) cg.push(cgR[j] / cgN[j] / 255, cgG[j] / cgN[j] / 255, cgB[j] / cgN[j] / 255);
       else cg.push(bg[0] / 255, bg[1] / 255, bg[2] / 255);
     }
-
     return {
       empty: false,
       feat: { shape: sh, hue: hu, grid: cg, size: [bw2 / iw, bh2 / ih, coverage] },
@@ -347,9 +303,6 @@ window.PKA = window.PKA || {};
       digits: digits, numBox: numBox, cw: cw, ch: ch, ox: x0, oy: y0
     };
   };
-
-  /* ---------------- OCR proprio de digitos (aprende com voce) ---------------- */
-
   var DKEY = 'pka_digits_v1';
   var tpl = null;
 
@@ -360,13 +313,11 @@ window.PKA = window.PKA || {};
     return tpl;
   }
   function saveTpl() { try { localStorage.setItem(DKEY, JSON.stringify(tpl)); } catch (e) {} }
-
   function bmpDist(a, b) {
     var s = 0;
     for (var i = 0; i < a.length && i < b.length; i++) s += Math.abs(a[i] - b[i]);
     return s / (DW * DH);
   }
-
   P.digitCount = function () {
     var t = loadTpl(), c = 0;
     for (var k in t) c += t[k].length;
@@ -383,7 +334,6 @@ window.PKA = window.PKA || {};
     }
     saveTpl();
   };
-
   P.learnDigits = function (bitmaps, text) {
     if (!bitmaps || !bitmaps.length) return;
     text = String(text == null ? '' : text).replace(/[^0-9]/g, '');
@@ -401,19 +351,11 @@ window.PKA = window.PKA || {};
     }
     saveTpl();
   };
-
-  /**
-   * Le a quantidade a partir dos digitos segmentados.
-   * So devolve um valor quando TODOS os digitos batem com confianca:
-   * ou o casamento e praticamente exato (mesma fonte, mesmo render), ou o
-   * melhor candidato esta claramente a frente do segundo. Preencher a
-   * quantidade errada em silencio seria pior do que deixar em branco.
-   */
   P.readDigits = function (digits) {
     if (!digits || !digits.length) return null;
     var t = loadTpl(), out = '', worst = 0;
     for (var i = 0; i < digits.length; i++) {
-      var best = null, d1 = 9, d2 = 9;   // melhor e segundo melhor, de classes diferentes
+      var best = null, d1 = 9, d2 = 9;
       for (var ch in t) {
         var dc = 9;
         for (var j = 0; j < t[ch].length; j++) {
@@ -431,5 +373,4 @@ window.PKA = window.PKA || {};
     }
     return { text: out, dist: worst };
   };
-
 })(window.PKA);

@@ -1,10 +1,8 @@
-/* PKA Stone Reader - catalogo de pedras aprendidas */
 (function (P) {
   'use strict';
 
   var KEY = 'pka_catalog_v1';
 
-  // Tiers do jogo. O texto do range sai exatamente assim na lista final.
   P.TIERS = [
     { name: 'Novice',    range: '+0 a +5' },
     { name: 'Elemental', range: '+6 a +10' },
@@ -22,8 +20,6 @@
   }
   P.rangeOf = rangeOf;
 
-  /* --------- distancia entre assinaturas --------- */
-
   function l1(a, b) {
     var s = 0, n = Math.min(a.length, b.length);
     for (var i = 0; i < n; i++) s += Math.abs(a[i] - b[i]);
@@ -32,17 +28,15 @@
 
   function featDist(a, b) {
     if (!a || !b) return 9;
-    var dShape = l1(a.shape, b.shape) / a.shape.length;          // 0..1
-    var dHue = l1(a.hue, b.hue) / 2;                             // 0..1
-    var dGrid = l1(a.grid, b.grid) / a.grid.length;              // 0..1
+    var dShape = l1(a.shape, b.shape) / a.shape.length;
+    var dHue = l1(a.hue, b.hue) / 2;
+    var dGrid = l1(a.grid, b.grid) / a.grid.length;
     var dSize = (Math.abs(a.size[0] - b.size[0]) +
                  Math.abs(a.size[1] - b.size[1]) +
                  Math.abs(a.size[2] - b.size[2]) * 2) / 2;
     return 0.28 * dShape + 0.27 * dHue + 0.33 * dGrid + 0.12 * Math.min(1, dSize);
   }
   P.featDist = featDist;
-
-  /* --------- armazenamento --------- */
 
   var Catalog = {
     entries: [],
@@ -69,7 +63,6 @@
       return e.tier + ' ' + e.element + ' Stone';
     },
 
-    // Linha final da lista, no formato: "6 Common Flying Stones (+11 a +15)"
     line: function (e, qty) {
       var q = (qty === null || qty === undefined || !isFinite(qty)) ? '?' : qty;
       if (e.customName) {
@@ -99,7 +92,6 @@
     addSig: function (id, feat) {
       var e = this.byId(id);
       if (!e || !feat) return;
-      // nao acumula amostras redundantes
       for (var i = 0; i < e.sigs.length; i++) if (featDist(e.sigs[i], feat) < 0.03) return;
       e.sigs.push(feat);
       if (e.sigs.length > 12) e.sigs.shift();
@@ -118,10 +110,6 @@
 
     clear: function () { this.entries = []; this.save(); },
 
-    /**
-     * Compara a assinatura com todo o catalogo.
-     * Retorna { entry, dist, alts:[{entry,dist}] } ou null quando nada passa da tolerancia.
-     */
     match: function (feat, tol) {
       if (!feat) return null;
       var scored = [];
@@ -138,7 +126,6 @@
       if (!scored.length || scored[0].dist > tol) return { entry: null, dist: scored.length ? scored[0].dist : 9, alts: alts };
       return { entry: scored[0].entry, dist: scored[0].dist, alts: alts };
     },
-
     exportJSON: function () {
       return JSON.stringify({
         version: 1,
@@ -156,7 +143,6 @@
         })
       }, null, 1);
     },
-
     importJSON: function (obj, mode) {
       if (!obj || !Array.isArray(obj.entries)) return 0;
       if (mode === 'replace') this.entries = [];
@@ -173,9 +159,6 @@
       return added;
     }
   };
-
   function r3(v) { return Math.round(v * 1000) / 1000; }
-
   P.Catalog = Catalog;
-
 })(window.PKA);

@@ -1,11 +1,10 @@
-/* PKA Stone Reader - aplicacao */
 (function (P) {
   'use strict';
 
   var Cat = P.Catalog;
 
   var state = {
-    images: [],      // { name, el, w, h, data(ImageData), grid, region, cells }
+    images: [],
     active: -1,
     tol: 0.16,
     dragging: null,
@@ -14,8 +13,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var cv = $('cv'), ctx = cv.getContext('2d', { willReadFrequently: true });
-
-  /* ================= carregamento de imagens ================= */
 
   function readFiles(files) {
     var list = Array.prototype.slice.call(files).filter(function (f) {
@@ -98,8 +95,6 @@
     if (!im.grid) autoDetect(); else { drawCanvas(); renderCells(); renderOutput(); }
   }
 
-  /* ================= grade ================= */
-
   function autoDetect() {
     var im = cur();
     if (!im) return;
@@ -153,8 +148,6 @@
     im.region = null; autoDetect();
   });
 
-  /* ================= analise ================= */
-
   function analyze() {
     var im = cur();
     if (!im || !im.grid) return;
@@ -175,7 +168,6 @@
             match: null
           };
           if (!cell.empty) {
-            // modelos proprios: vieram de quantidades que voce confirmou, entao valem 100%
             var d = P.readDigits(res.digits);
             if (d) { cell.qty = String(parseInt(d.text, 10)); cell.qtySrc = 'auto'; cell.qtyConf = 100; }
           }
@@ -200,13 +192,8 @@
     });
   }
 
-  /* ================= OCR opcional (Tesseract) ================= */
-
   var tessWorker = null, tessBusy = false;
 
-  // Monta a imagem que vai para o Tesseract a partir do recorte ORIGINAL do
-  // numero (numBox), so ampliado. Usar os bitmaps normalizados 8x12 aqui
-  // deformaria os digitos e o OCR nao reconheceria nada.
   function digitStrip(numBox) {
     var s = 6, pad = 14;
     var w = numBox.w * s + pad * 2, h = numBox.h * s + pad * 2;
@@ -282,10 +269,7 @@
           todo[i].qtySrc = 'ocr';
           todo[i].qtyConf = out.data.confidence || 0;
         }
-        // De proposito NAO aprendemos com o Tesseract: ele erra as vezes, e um
-        // erro virado modelo se propagaria como "certeza" nas proximas prints.
-        // So o que voce confirma no campo de quantidade vira modelo.
-      } catch (e) { /* segue sem OCR nessa celula */ }
+      } catch (e) {  }
     }
     tessBusy = false;
     var low = todo.filter(function (c) { return c.qtySrc === 'ocr' && c.qtyConf < 80; }).length;
@@ -294,8 +278,6 @@
   }
 
   $('useOcr').addEventListener('change', function () { if (this.checked) maybeOcr(); });
-
-  /* ================= desenho ================= */
 
   function drawCanvas() {
     var im = cur();
@@ -373,8 +355,6 @@
     return c;
   }
 
-  /* ================= lista de celulas ================= */
-
   function pos(cell) { return 'Linha ' + (cell.r + 1) + ', Coluna ' + (cell.c + 1); }
 
   function renderCells() {
@@ -439,7 +419,6 @@
     row.appendChild(edit);
     body.appendChild(row);
 
-    // sugestoes proximas (top 3) quando nao identificou
     if (!known && cell.match && cell.match.alts && cell.match.alts.length) {
       var alts = document.createElement('div');
       alts.className = 'alts';
@@ -538,8 +517,6 @@
     return o;
   }
 
-  /* ================= saida ================= */
-
   function renderOutput() {
     var imgs = $('sumAll').checked ? state.images : [cur()];
     var order = [], map = {}, unknown = [], noqty = [];
@@ -596,8 +573,6 @@
     document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
-
-  /* ================= catalogo ================= */
 
   function renderCatalog() {
     var box = $('catalog');
@@ -670,8 +645,6 @@
       })
       .catch(function () { renderCatalog(); });
   }
-
-  /* ================= util ================= */
 
   var statusTimer = null;
   function status(t) {
