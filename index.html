@@ -3,155 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PKA Stone Reader</title>
-<link rel="stylesheet" href="css/style.css">
+<title>PKA Stone Reader mudou de endereço</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0e14;color:#e8edf6;
+  font:15px/1.6 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:24px}
+a{color:#8fb0ff}
+</style>
 </head>
 <body>
-
-<header class="top">
-  <h1>PKA <span>Stone Reader</span></h1>
-  <p>Jogue a print da bag do Poke Alliance e receba a lista de pedras com as quantidades.</p>
-</header>
-
 <main>
-
-  <section class="card" id="dropCard">
-    <div id="drop" class="drop">
-      <strong>Arraste a print aqui</strong>
-      <span>ou clique para escolher &middot; ou cole com <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
-      <input type="file" id="file" accept="image/*" multiple hidden>
-    </div>
-    <div id="strip" class="strip"></div>
-  </section>
-
-  <section class="card hidden" id="work">
-    <div class="toolbar">
-      <button id="btnAuto" class="btn">Detectar grade</button>
-      <button id="btnRegion" class="btn ghost">Selecionar área</button>
-      <button id="btnMark" class="btn ghost">Marcar grade</button>
-      <button id="btnClearRegion" class="btn ghost">Área cheia</button>
-      <button id="btnGrid" class="btn ghost">Ajustar grade</button>
-      <button id="btnReanalyze" class="btn ghost">Reanalisar</button>
-      <button id="btnReport" class="btn">Relatório</button>
-      <span class="spacer"></span>
-      <label class="chk"><input type="checkbox" id="useOcr" checked> OCR automático</label>
-      <span id="status" class="status"></span>
-    </div>
-
-    <div class="gridbox hidden" id="gridbox">
-      <span class="hint" style="flex-basis:100%;margin:0">Com <b>Marcar grade</b>: arraste do canto superior esquerdo do primeiro slot até o canto inferior direito do último, depois acerte Colunas e Linhas aqui.</span>
-      <label>X <input type="number" id="gx" step="1"></label>
-      <label>Y <input type="number" id="gy" step="1"></label>
-      <label>Largura célula <input type="number" id="gpx" step="1"></label>
-      <label>Altura célula <input type="number" id="gpy" step="1"></label>
-      <label>Colunas <input type="number" id="gcols" step="1" min="1"></label>
-      <label>Linhas <input type="number" id="grows" step="1" min="1"></label>
-      <label>Tolerância <input type="range" id="thr" min="0.04" max="0.40" step="0.01"> <b id="thrv"></b></label>
-    </div>
-
-    <div class="canvaswrap"><canvas id="cv"></canvas></div>
-  </section>
-
-  <section class="card hidden" id="cellsCard">
-    <h2>Células <small id="cellsInfo"></small></h2>
-    <p class="hint">Verde = pronto &middot; amarelo = confira a quantidade &middot; vermelho = pedra desconhecida, clique em <b>Registrar</b>.
-       O app só memoriza os números que <b>você</b> digita: depois de confirmar cada dígito uma vez, a leitura passa a ser instantânea e offline.</p>
-    <div class="toolbar">
-      <button id="btnBatch" class="btn ghost">Cadastrar pela lista</button>
-    </div>
-    <div id="batchBox" class="batch hidden">
-      <p class="hint">Cole a lista de pedras na <b>ordem de leitura</b> (esquerda para a direita, de cima para baixo).
-         Uma pedra por linha, no formato <code>6 Common Flying Stones (+11 a +15)</code>.
-         Linhas que não seguirem o formato são ignoradas, então pode colar com títulos no meio.</p>
-      <textarea id="batchText" rows="8" placeholder="6 Common Flying Stones (+11 a +15)
-4 Common Poison Stones (+11 a +15)
-8 Common Normal Stones (+11 a +15)"></textarea>
-      <div class="toolbar">
-        <button id="btnBatchApply" class="btn">Aplicar</button>
-        <button id="btnBatchCancel" class="btn ghost">Cancelar</button>
-        <label class="chk"><input type="checkbox" id="batchOnlyNew"> Só as não identificadas</label>
-        <label class="chk"><input type="checkbox" id="batchAllImages"> Em todas as imagens carregadas</label>
-        <span id="batchInfo" class="status"></span>
-      </div>
-      <p class="hint" style="margin:8px 0 0">Sem marcar: a lista tem que ter <b>todas</b> as células, inclusive as já cadastradas.
-         Marcando: a lista vale só para as <b>vermelhas</b>, na ordem em que aparecem — use ao acrescentar pedras novas.</p>
-      <p class="hint" style="margin:6px 0 0">Se uma print vier com a bag em outro tamanho e as pedras conhecidas aparecerem
-         como desconhecidas, cole a lista completa de novo nessa print: o app reconhece o nome, <b>não duplica</b> a pedra e
-         guarda a captura nova como mais uma amostra dela. A partir daí as duas versões passam a ser reconhecidas.</p>
-      <p class="hint" style="margin:6px 0 0">Para treinar de uma vez: jogue <b>várias prints da mesma bag</b> (o brilho passando
-         pelas pedras muda a imagem, então quanto mais capturas, melhor), marque <b>Em todas as imagens carregadas</b> e cole a
-         lista uma única vez. Cada print vira uma amostra a mais de cada pedra.</p>
-      <p class="hint" style="margin:6px 0 0">O <code>(+11 a +15)</code> é <b>opcional</b> na lista: pode escrever só
-         <code>6 Common Flying Stones</code> que a faixa sai sozinha pelo tier.</p>
-    </div>
-    <div id="cells" class="cells"></div>
-  </section>
-
-  <section class="card hidden" id="outCard">
-    <h2>Resultado</h2>
-    <div class="toolbar">
-      <label class="chk"><input type="checkbox" id="sumAll"> Somar todas as imagens</label>
-      <span class="spacer"></span>
-      <button id="btnCopy" class="btn">Copiar</button>
-      <button id="btnTxt" class="btn ghost">Baixar .txt</button>
-    </div>
-    <div id="warn" class="warn hidden"></div>
-    <pre id="output" class="output"></pre>
-  </section>
-
-  <section class="card">
-    <h2>Catálogo <small id="catInfo"></small></h2>
-    <p class="hint">Tudo que você registra fica salvo neste navegador e vai <b>somando</b> sozinho: cada print
-       cadastrada vira mais uma amostra da mesma pedra (é o "N amostra(s)" de cada cartão). Não precisa exportar
-       entre uma print e outra — cadastre quantas quiser e exporte uma vez no fim.</p>
-    <p class="hint"><b>Exportar</b> baixa tudo num arquivo (é o backup, e é o que você copia para <code>data/catalog.json</code>
-       no repositório). <b>Importar</b> lê um arquivo e junta com o que já está aqui, somando as amostras sem duplicar pedra.
-       <b>Recarregar do repositório</b> faz o mesmo com o arquivo publicado no site. Só o <b>Limpar catálogo</b> apaga.</p>
-    <div class="toolbar">
-      <button id="btnExport" class="btn">Exportar JSON</button>
-      <button id="btnImport" class="btn ghost">Importar JSON</button>
-      <button id="btnRepo" class="btn ghost">Recarregar do repositório</button>
-      <button id="btnWipe" class="btn danger">Limpar catálogo</button>
-      <input type="file" id="importFile" accept="application/json" hidden>
-    </div>
-    <h3 class="sub">Tiers e faixas</h3>
-    <p class="hint">O que você escrever aqui é o que aparece depois do nome no resultado. Mudar uma faixa
-       atualiza na hora todas as pedras daquele tier já cadastradas.</p>
-    <div id="tiers" class="tiers"></div>
-    <div class="toolbar">
-      <button id="btnTierAdd" class="btn ghost">Adicionar tier</button>
-      <button id="btnTierSave" class="btn">Salvar tiers</button>
-      <button id="btnTierReset" class="btn ghost">Restaurar padrão</button>
-      <span id="tierMsg" class="status"></span>
-    </div>
-
-    <h3 class="sub">Pedras</h3>
-    <div id="catalog" class="catalog"></div>
-  </section>
-
+<h1>PKA Stone Reader mudou de endereço</h1>
+<p>O leitor agora roda em um servidor próprio, que aprende com cada print.</p>
 </main>
-
-<div id="reportModal" class="modal hidden">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h2>Relatório</h2>
-      <button id="btnReportClose" class="x" title="fechar">×</button>
-    </div>
-    <pre id="reportText" class="output"></pre>
-    <div id="reportWarn" class="warn hidden"></div>
-    <div class="toolbar">
-      <button id="btnReportCopy" class="btn">Copiar</button>
-      <button id="btnReportTxt" class="btn ghost">Baixar .txt</button>
-      <label class="chk"><input type="checkbox" id="reportSumAll"> Somar todas as imagens</label>
-      <span id="reportMsg" class="status"></span>
-    </div>
-  </div>
-</div>
-
-<footer>PKA Stone Reader &middot; roda 100% no navegador, nenhuma imagem é enviada para servidor.</footer>
-
-<script src="js/vision.js"></script>
-<script src="js/catalog.js"></script>
-<script src="js/app.js"></script>
 </body>
 </html>

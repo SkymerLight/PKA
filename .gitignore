@@ -1,6 +1,7 @@
 node_modules/
+.data/
+.claude/
 .DS_Store
 Thumbs.db
 desktop.ini
 *.log
-teste.png

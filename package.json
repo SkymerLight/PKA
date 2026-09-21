@@ -1,0 +1,13 @@
+{
+  "name": "pka-stone-reader",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Leitor de print da bag do Poke Alliance",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

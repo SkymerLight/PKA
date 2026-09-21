@@ -47,7 +47,7 @@
 
   P.ELEMENTS = ['Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting',
     'Poison', 'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon',
-    'Dark', 'Steel', 'Fairy'];
+    'Dark', 'Steel', 'Fairy', 'Neutral'];
 
   function rangeOf(tier) {
     for (var i = 0; i < P.TIERS.length; i++) if (P.TIERS[i].name === tier) return P.TIERS[i].range;

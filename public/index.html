@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PKA Stone Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="fontLink" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+
+<header class="top">
+  <a class="brand" href="/">
+    <span class="logo" id="logo">💎</span>
+    <span class="brand-txt"><b id="siteTitle">PKA Stone Reader</b><small id="siteSubtitle"></small></span>
+  </a>
+  <nav id="adminNav" class="nav hidden">
+    <button data-tab="leitor" class="on">Leitor</button>
+    <button data-tab="fila">Fila <span id="filaN" class="pill hidden"></span></button>
+    <button data-tab="catalogo">Catálogo</button>
+    <button data-tab="aparencia">Aparência</button>
+    <button data-tab="dados">IA e dados</button>
+    <button id="btnLogout" class="sair">Sair</button>
+  </nav>
+</header>
+
+<main>
+
+  <section id="tab-login" class="tab hidden">
+    <form id="loginForm" class="card login">
+      <h2>Área do administrador</h2>
+      <p class="muted" id="loginInfo">Entre para revisar envios, editar o catálogo e a aparência.</p>
+      <label>Usuário <input id="loginUser" autocomplete="username" required></label>
+      <label>Senha <input id="loginPass" type="password" autocomplete="current-password" required></label>
+      <button class="btn" type="submit">Entrar</button>
+      <p id="loginMsg" class="erro"></p>
+    </form>
+  </section>
+
+  <section id="tab-leitor" class="tab">
+    <div id="drop" class="drop" tabindex="0" role="button">
+      <span class="drop-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg></span>
+      <b>Arraste as prints da bag aqui</b>
+      <span>ou clique para escolher &middot; ou cole com <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+    </div>
+
+    <div id="review" class="banner hidden">
+      <span>Revisando um envio. Ajuste os nomes e clique em <b>Aprovar e ensinar</b>.</span>
+      <button id="btnCancelReview" class="btn ghost sm">Cancelar revisão</button>
+    </div>
+
+    <div id="work" class="work hidden">
+      <div class="card print">
+        <div class="card-head">
+          <h2>Print</h2>
+          <div class="strip" id="strip"></div>
+        </div>
+        <div class="canvaswrap"><canvas id="cv"></canvas></div>
+        <div class="tools">
+          <button id="btnAuto" class="btn ghost sm">Detectar grade</button>
+          <button id="btnMark" class="btn ghost sm">Marcar grade</button>
+          <button id="btnGrid" class="btn ghost sm">Ajustar</button>
+          <span class="spacer"></span>
+          <span id="status" class="status"></span>
+        </div>
+        <div id="gridbox" class="gridbox hidden">
+          <p class="muted">Com <b>Marcar grade</b>, arraste do canto do primeiro slot até o canto do último e acerte colunas e linhas.</p>
+          <label>X <input type="number" id="gx" step="any"></label>
+          <label>Y <input type="number" id="gy" step="any"></label>
+          <label>Largura <input type="number" id="gpx" step="any"></label>
+          <label>Altura <input type="number" id="gpy" step="any"></label>
+          <label>Colunas <input type="number" id="gcols" min="1"></label>
+          <label>Linhas <input type="number" id="grows" min="1"></label>
+          <label class="wide">Tolerância <input type="range" id="thr" min="0.04" max="0.40" step="0.01"> <b id="thrv"></b></label>
+        </div>
+      </div>
+
+      <div class="card report">
+        <div class="card-head">
+          <h2>Relatório</h2>
+          <span id="reportCount" class="muted"></span>
+        </div>
+        <pre id="output" class="output"></pre>
+        <div id="warn" class="warn hidden"></div>
+        <div class="tools">
+          <button id="btnCopy" class="btn">Copiar</button>
+          <button id="btnTxt" class="btn ghost">Baixar .txt</button>
+          <label class="chk"><input type="checkbox" id="sumAll"> Somar as prints</label>
+        </div>
+      </div>
+    </div>
+
+    <div id="itemsCard" class="card hidden">
+      <div class="card-head">
+        <h2>Itens <span id="itemsInfo" class="muted"></span></h2>
+        <div class="legend">
+          <span><i class="d ok"></i>reconhecido</span>
+          <span><i class="d man"></i>você</span>
+          <span><i class="d ia"></i>IA</span>
+          <span><i class="d q"></i>confira</span>
+          <span><i class="d no"></i>desconhecido</span>
+        </div>
+      </div>
+      <p class="muted dica">Clique no nome para trocar: digite parte dele (vale em português, como <i>fogo</i>, <i>fada</i>, <i>dragão</i>) e tecle <kbd>Enter</kbd>.</p>
+      <div id="aiBar" class="aibar hidden"></div>
+      <div id="items" class="items"></div>
+      <div class="card-foot">
+        <button id="btnAI" class="btn ghost hidden">✨ Perguntar à IA</button>
+        <span class="spacer"></span>
+        <span id="saveMsg" class="status"></span>
+        <button id="btnSave" class="btn">Enviar correções</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-fila" class="tab hidden">
+    <div class="card">
+      <div class="card-head">
+        <h2>Envios</h2>
+        <div class="seg" id="filaFiltro">
+          <button data-s="pending" class="on">Pendentes</button>
+          <button data-s="approved">Aprovados</button>
+          <button data-s="rejected">Rejeitados</button>
+        </div>
+      </div>
+      <p class="muted">Tudo que alguém envia pelo link público cai aqui. Só o que você aprova vira aprendizado.</p>
+      <div id="fila" class="fila"></div>
+    </div>
+  </section>
+
+  <section id="tab-catalogo" class="tab hidden">
+    <div class="card">
+      <div class="card-head"><h2>Pedras <span id="catInfo" class="muted"></span></h2>
+        <input id="catBusca" class="busca" placeholder="Filtrar…">
+      </div>
+      <div id="catalog" class="catalog"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Tiers e faixas</h2></div>
+      <p class="muted">O texto da faixa é o que aparece depois do nome no relatório. Mudar aqui atualiza todas as pedras do tier.</p>
+      <div id="tiers" class="tiers"></div>
+      <div class="tools">
+        <button id="btnTierAdd" class="btn ghost sm">Adicionar tier</button>
+        <button id="btnTierSave" class="btn sm">Salvar tiers</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-aparencia" class="tab hidden">
+    <div class="card">
+      <div class="card-head"><h2>Aparência</h2></div>
+      <p class="muted">As mudanças aparecem na hora nesta página; clique em Salvar para publicar para todo mundo.</p>
+      <div class="form-grid" id="aparencia">
+        <label>Título <input data-k="title"></label>
+        <label>Ícone <input data-k="logo" maxlength="8"></label>
+        <label class="wide">Subtítulo <input data-k="subtitle"></label>
+        <label>Cor principal <input type="color" data-k="accent"></label>
+        <label>Cor secundária <input type="color" data-k="accent2"></label>
+        <label>Fundo <input type="color" data-k="bg"></label>
+        <label>Painéis <input type="color" data-k="panel"></label>
+        <label>Texto <input type="color" data-k="text"></label>
+        <label>Fonte
+          <select data-k="font">
+            <option>Poppins</option><option>Inter</option><option>Nunito</option><option>Rubik</option>
+            <option>Outfit</option><option>Space Grotesk</option><option>Exo 2</option><option>Press Start 2P</option>
+          </select>
+        </label>
+        <label class="wide">Arredondamento <input type="range" min="0" max="28" data-k="radius"></label>
+      </div>
+      <div class="tools">
+        <button id="btnThemeSave" class="btn">Salvar aparência</button>
+        <button id="btnThemeReset" class="btn ghost">Restaurar padrão</button>
+        <span id="themeMsg" class="status"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-dados" class="tab hidden">
+    <div class="card">
+      <div class="card-head"><h2>Inteligência artificial</h2><span id="iaEstado" class="pill"></span></div>
+      <div id="iaInfo" class="stats"></div>
+      <div class="form-grid">
+        <label class="chk"><input type="checkbox" id="optAiAuto"> Perguntar à IA automaticamente quando um item não for reconhecido</label>
+        <label class="chk"><input type="checkbox" id="optPublic"> Visitantes podem enviar correções (vão para a fila)</label>
+        <label>Limite diário de consultas públicas <input type="number" id="optLimit" min="0"></label>
+        <label>Tolerância padrão <input type="number" id="optTol" min="0.04" max="0.4" step="0.01"></label>
+      </div>
+      <div class="tools"><button id="btnOptSave" class="btn sm">Salvar opções</button><span id="optMsg" class="status"></span></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Aprendizado</h2></div>
+      <div id="stats" class="stats"></div>
+      <p class="muted">Reconstruir refaz o catálogo inteiro a partir das prints aprovadas. Use se algo parecer errado depois de editar muita coisa.</p>
+      <div class="tools">
+        <button id="btnRebuild" class="btn ghost">Reconstruir aprendizado</button>
+        <button id="btnExport" class="btn ghost">Exportar catálogo</button>
+        <button id="btnImport" class="btn ghost">Importar catálogo antigo</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+        <span id="dadosMsg" class="status"></span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="rodape">Feito para a comunidade do Poke Alliance.</footer>
+
+<div id="dd" class="dd hidden" role="listbox"></div>
+<div id="toast" class="toast" role="status"></div>
+
+<script src="/js/vision.js"></script>
+<script src="/js/catalog.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>
