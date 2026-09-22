@@ -319,7 +319,7 @@
     if (!im || !im.mark) return;
     const cols = Math.max(1, Math.round(+$('gcols').value || 1));
     const rows = Math.max(1, Math.round(+$('grows').value || 1));
-    im.grid = { x: im.mark.x, y: im.mark.y, pw: im.mark.w / cols, ph: im.mark.h / rows, cols, rows };
+    im.grid = P.refinarGrade(im.data, { x: im.mark.x, y: im.mark.y, pw: im.mark.w / cols, ph: im.mark.h / rows, cols, rows });
     preencherGrade(im.grid);
     reanalisar(im);
   }

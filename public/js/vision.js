@@ -2,7 +2,7 @@ window.PKA = window.PKA || {};
 (function (P) {
   'use strict';
 
-  P.SIG_VERSION = 2;
+  P.SIG_VERSION = 3;
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   P.clamp = clamp;
@@ -198,10 +198,65 @@ window.PKA = window.PKA || {};
     };
   }
 
+  function perfilLinhas(img, eixo, a0, a1, b0, b1) {
+    var W = img.width, d = img.data, n = eixo === 'x' ? img.width : img.height;
+    var out = new Float64Array(n);
+    var lo = Math.max(0, Math.floor(b0)), hi = Math.min(eixo === 'x' ? img.height : img.width, Math.ceil(b1));
+    if (hi - lo < 4) return null;
+    var i0 = Math.max(0, Math.floor(a0)), i1 = Math.min(n, Math.ceil(a1));
+    for (var i = i0; i < i1; i++) {
+      var s = 0;
+      for (var j = lo; j < hi; j++) {
+        var k = eixo === 'x' ? (j * W + i) * 4 : (i * W + j) * 4;
+        s += 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2];
+      }
+      out[i] = s / (hi - lo);
+    }
+    var f = new Float64Array(n);
+    for (var x = 2; x < n - 3; x++) {
+      f[x] = Math.min(out[x], out[x + 1]) - Math.max(out[x - 2], out[x - 1], out[x + 2], out[x + 3]);
+    }
+    return f;
+  }
+
+  function encaixar(f, n, inicio, passo, qtd) {
+    if (!f) return null;
+    var melhor = -Infinity, bo = inicio, bp = passo;
+    for (var p = passo - 1.2; p <= passo + 1.2001; p += 0.1) {
+      for (var o = inicio - 6; o <= inicio + 6; o += 0.25) {
+        var s = 0, c = 0;
+        for (var k = 0; k <= qtd; k++) {
+          var x = Math.round(o + k * p);
+          if (x < 2 || x >= n - 3) continue;
+          s += Math.max(f[x], f[x - 1] * 0.8, f[x + 1] * 0.8);
+          c++;
+        }
+        if (c < 2) continue;
+        s /= c;
+        if (s > melhor) { melhor = s; bo = o; bp = p; }
+      }
+    }
+    return melhor > 4 ? { inicio: bo + 1, passo: Math.round(bp * 100) / 100 } : null;
+  }
+
+  P.refinarGrade = function (img, g) {
+    if (!g) return g;
+    var larg = g.cols * g.pw, alt = g.rows * g.ph;
+    var fx = perfilLinhas(img, 'x', g.x - g.pw, g.x + larg + g.pw, g.y, g.y + alt);
+    var fy = perfilLinhas(img, 'y', g.y - g.ph, g.y + alt + g.ph, g.x, g.x + larg);
+    var ex = encaixar(fx, img.width, g.x - 1, g.pw, g.cols);
+    var ey = encaixar(fy, img.height, g.y - 1, g.ph, g.rows);
+    var out = { x: g.x, y: g.y, pw: g.pw, ph: g.ph, cols: g.cols, rows: g.rows };
+    if (ex) { out.x = ex.inicio; out.pw = ex.passo; }
+    if (ey) { out.y = ey.inicio; out.ph = ey.passo; }
+    if (Math.abs(out.pw - out.ph) / Math.max(out.pw, out.ph) < 0.05) out.pw = out.ph = Math.round((out.pw + out.ph) * 50) / 100;
+    if (g.porGemas) out.porGemas = true;
+    return out;
+  };
+
   P.detectGrid = function (img, region) {
-    var porGemas = gradePorGemas(img, region);
-    if (porGemas) return porGemas;
-    return gradePorPerfil(img, region);
+    var g = gradePorGemas(img, region) || gradePorPerfil(img, region);
+    return g ? P.refinarGrade(img, g) : g;
   };
 
   function gradePorPerfil(img, region) {

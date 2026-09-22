@@ -265,6 +265,14 @@ function catalogoPublico() {
   return cacheCatalogo;
 }
 
+function ajustarGrade(s, img) {
+  if (s.gradeAjustada === P.SIG_VERSION) return;
+  const g = P.refinarGrade(img, s.grid);
+  s.grid = { x: g.x, y: g.y, pw: g.pw, ph: g.ph, cols: s.grid.cols, rows: s.grid.rows };
+  s.gradeAjustada = P.SIG_VERSION;
+  salvarAmostra(s);
+}
+
 function reconstruir() {
   for (const e of catalog.entries) e.sigs = (e.manualSigs || []).slice();
   P.digitClearAll();
@@ -272,6 +280,7 @@ function reconstruir() {
   for (const s of aprovadas) {
     let img;
     try { img = imagem(s.id); } catch (e) { continue; }
+    ajustarGrade(s, img);
     for (const cell of s.cells) {
       if (!cell.entryId) continue;
       const e = catalog.entries.find(x => x.id === cell.entryId);
@@ -298,7 +307,8 @@ function criarAmostra(dados, fonte) {
     width: img.width,
     height: img.height,
     grid,
-    cells: limparCelulas(dados.cells, grid)
+    cells: limparCelulas(dados.cells, grid),
+    gradeAjustada: P.SIG_VERSION
   };
   fs.writeFileSync(arq('prints', s.id + '.png'), buf);
   imagens.set(s.id, img);
@@ -312,6 +322,8 @@ function aprovar(id, dados) {
   if (dados && dados.grid) s.grid = limparGrade(dados.grid, imagem(s.id));
   if (dados && dados.cells) s.cells = limparCelulas(dados.cells, s.grid);
   const img = imagem(s.id);
+  if (dados && dados.grid) s.gradeAjustada = P.SIG_VERSION;
+  ajustarGrade(s, img);
   for (const cell of s.cells) {
     cell.label = limparRotulo(cell.label);
     if (!cell.label) { cell.entryId = null; continue; }
