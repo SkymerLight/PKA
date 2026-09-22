@@ -82,7 +82,7 @@ rota('GET', '/api/me', ctx => ({
 rota('GET', '/api/settings', () => store.getSettings());
 
 rota('GET', '/api/catalog', (ctx, req, res) => {
-  const etag = '"c' + store.rev() + '"';
+  const etag = store.etag();
   if (req.headers['if-none-match'] === etag) { res.writeHead(304, { ETag: etag }); res.end(); return undefined; }
   res.writeHead(200, Object.assign({ 'Content-Type': MIME['.json'], 'Cache-Control': 'no-cache', ETag: etag }, SEGURANCA));
   res.end(store.catalogoPublico());

@@ -2,7 +2,7 @@ window.PKA = window.PKA || {};
 (function (P) {
   'use strict';
 
-  P.SIG_VERSION = 3;
+  P.SIG_VERSION = 4;
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   P.clamp = clamp;
@@ -462,6 +462,8 @@ window.PKA = window.PKA || {};
         cgB = new Float32Array(CG * CG), cgN = new Float32Array(CG * CG);
     var hue = new Float32Array(HB), hueSum = 0;
     var mr = 0, mg = 0, mb = 0;
+    var sSum = 0, vSum = 0, vSq = 0, hc = 0, hs = 0, borda = 0;
+    var vHist = new Float32Array(8), sHist = new Float32Array(6);
     for (y = by0; y <= by1; y++) {
       var sy = Math.min(SH - 1, ((y - by0) * SH / bh2) | 0);
       var gy2 = Math.min(CG - 1, ((y - by0) * CG / bh2) | 0);
@@ -478,8 +480,25 @@ window.PKA = window.PKA || {};
         var wgt = hsv[1] * hsv[2];
         hue[Math.min(HB - 1, (hsv[0] * HB) | 0)] += wgt;
         hueSum += wgt;
+        sSum += hsv[1]; vSum += hsv[2]; vSq += hsv[2] * hsv[2];
+        hc += Math.cos(hsv[0] * 2 * Math.PI) * hsv[1];
+        hs += Math.sin(hsv[0] * 2 * Math.PI) * hsv[1];
+        vHist[Math.min(7, (hsv[2] * 8) | 0)]++;
+        sHist[Math.min(5, (hsv[1] * 6) | 0)]++;
+        if (!gem[k - 1] || !gem[k + 1] || !gem[k - cw] || !gem[k + cw]) borda++;
       }
     }
+    var nG = gemCount || 1;
+    var vMed = vSum / nG, vDp = Math.sqrt(Math.max(0, vSq / nG - vMed * vMed));
+    var tom = [sSum / nG, vMed, vDp, hc / nG, hs / nG];
+    for (j = 0; j < 8; j++) tom.push(vHist[j] / nG);
+    for (j = 0; j < 6; j++) tom.push(sHist[j] / nG);
+    var forma = [
+      Math.min(2, bh2 / bw2) / 2,
+      gemCount / (bw2 * bh2),
+      Math.min(1, borda / (4 * Math.sqrt(nG))),
+      bw2 / iw, bh2 / ih
+    ];
     var sh = [];
     for (j = 0; j < SH * SH; j++) sh.push(scnt[j] ? shape[j] / scnt[j] : 0);
     var hu = [];
@@ -491,7 +510,7 @@ window.PKA = window.PKA || {};
     }
     return {
       empty: false,
-      feat: { shape: sh, hue: hu, grid: cg, size: [bw2 / iw, bh2 / ih, coverage] },
+      feat: { shape: sh, hue: hu, grid: cg, size: [bw2 / iw, bh2 / ih, coverage], tone: tom, form: forma },
       mean: [mr / gemCount, mg / gemCount, mb / gemCount],
       bg: bg, coverage: coverage,
       digits: digits, numBox: numBox, cw: cw, ch: ch, ox: x0, oy: y0

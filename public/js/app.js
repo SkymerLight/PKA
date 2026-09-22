@@ -231,9 +231,16 @@
     const m = Cat.match(c.feat, S.tol);
     c.match = m;
     c.incerto = false;
+    c.sug = null;
     if (m && m.entry && m.alts && m.alts.length > 1) {
-      const margem = m.alts[1].dist - m.alts[0].dist;
-      if (margem < 0.025 && m.dist > 0.05) c.incerto = true;
+      if (m.alts[1].dist < m.alts[0].dist * 1.25 && m.dist > 0.07) c.incerto = true;
+    }
+    if (!m || !m.entry || c.incerto) {
+      const s = Cat.sugerir(c.feat);
+      if (s) {
+        c.sug = { kind: 'stone', tier: s.tier, element: s.element, customName: '' };
+        if (c.incerto && rot(c.sug) === rot(lbl(m.entry))) { c.incerto = false; c.sug = null; }
+      }
     }
   }
 
@@ -243,6 +250,7 @@
     if (c.manual) return { label: c.manual, fonte: 'manual' };
     if (c.match && c.match.entry && !c.incerto) return { label: lbl(c.match.entry), fonte: 'catalogo', entry: c.match.entry };
     if (c.ai && c.ai.label) return { label: c.ai.label, fonte: 'ia' };
+    if (c.sug) return { label: c.sug, fonte: 'forma' };
     if (c.match && c.match.entry) return { label: lbl(c.match.entry), fonte: 'incerto', entry: c.match.entry };
     return null;
   }
@@ -251,7 +259,7 @@
     const f = final(c);
     if (!f) return 'no';
     if (f.label.kind === 'ignore') return 'ig';
-    return { manual: 'man', catalogo: 'ok', ia: 'ia', incerto: 'q' }[f.fonte];
+    return { manual: 'man', catalogo: 'ok', ia: 'ia', incerto: 'q', forma: 'q' }[f.fonte];
   }
 
   function cur() { return S.images[S.active] || null; }
@@ -413,7 +421,8 @@
     pos.textContent = 'L' + (c.r + 1) + ' · C' + (c.c + 1);
     top.appendChild(pos);
     if (f && f.fonte === 'ia') top.appendChild(tag('IA ' + Math.round((c.ai.conf || 0) * 100) + '%', 'ia'));
-    if (st === 'q') top.appendChild(tag('confira', 'q'));
+    if (f && f.fonte === 'forma') top.appendChild(tag('pela forma e cor', 'q'));
+    else if (st === 'q') top.appendChild(tag('confira', 'q'));
     if (f && f.fonte === 'manual') top.appendChild(tag('você', ''));
     if (f && f.label.kind === 'stone' && !f.label.customName) {
       const faixa = P.rangeOf(f.label.tier);
@@ -658,7 +667,7 @@
         if (!f) { desc.push(onde); return; }
         if (f.label.kind === 'ignore') return;
         if (f.fonte === 'ia') porIA++;
-        if (f.fonte === 'incerto') conferir++;
+        if (f.fonte === 'incerto' || f.fonte === 'forma') conferir++;
         const l = (f.label.customName && interpretar(f.label.customName)) || f.label;
         const k = rot(l);
         const q = c.qty === '' ? null : parseInt(c.qty, 10);
@@ -777,7 +786,7 @@
         r: c.r, c: c.c,
         label: f ? f.label : null,
         qty: c.qty === '' ? null : parseInt(c.qty, 10),
-        origem: !f ? 'manual' : (f.fonte === 'manual' ? 'manual' : (f.fonte === 'ia' ? 'ia' : 'catalogo')),
+        origem: !f ? 'manual' : ({ manual: 'manual', ia: 'ia', forma: 'forma' }[f.fonte] || 'catalogo'),
         ai: c.ai && c.ai.label ? { label: c.ai.label, conf: c.ai.conf } : null
       };
     });

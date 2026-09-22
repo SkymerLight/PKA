@@ -61,8 +61,7 @@
     return s;
   }
 
-  function featDist(a, b) {
-    if (!a || !b) return 9;
+  function distAntiga(a, b) {
     var dShape = l1(a.shape, b.shape) / a.shape.length;
     var dHue = l1(a.hue, b.hue) / 2;
     var dGrid = l1(a.grid, b.grid) / a.grid.length;
@@ -71,7 +70,25 @@
                  Math.abs(a.size[2] - b.size[2]) * 2) / 2;
     return 0.28 * dShape + 0.27 * dHue + 0.33 * dGrid + 0.12 * Math.min(1, dSize);
   }
+
+  function dForma(a, b) {
+    return 0.5 * l1(a.shape, b.shape) / a.shape.length + l1(a.form, b.form) / a.form.length;
+  }
+
+  function dCor(a, b) {
+    return 0.2 * l1(a.hue, b.hue) + 1.2 * l1(a.tone, b.tone) / a.tone.length;
+  }
+
+  function completa(f) { return f && f.tone && f.form; }
+
+  function featDist(a, b) {
+    if (!a || !b) return 9;
+    if (!completa(a) || !completa(b)) return distAntiga(a, b);
+    return 1.3333 * (Math.max(dForma(a, b), dCor(a, b)) + 0.3 * distAntiga(a, b));
+  }
   P.featDist = featDist;
+  P.dForma = function (a, b) { return completa(a) && completa(b) ? dForma(a, b) : 9; };
+  P.dCor = function (a, b) { return completa(a) && completa(b) ? dCor(a, b) : 9; };
 
   var Catalog = {
     entries: [],
@@ -173,6 +190,24 @@
       if (!scored.length || scored[0].dist > tol) return { entry: null, dist: scored.length ? scored[0].dist : 9, alts: alts };
       return { entry: scored[0].entry, dist: scored[0].dist, alts: alts };
     },
+
+    sugerir: function (feat) {
+      if (!completa(feat)) return null;
+      var tier = null, bf = 9, elem = null, bc = 9;
+      for (var i = 0; i < this.entries.length; i++) {
+        var e = this.entries[i];
+        if (e.kind !== 'stone' || e.customName || !e.tier || !e.element) continue;
+        for (var j = 0; j < e.sigs.length; j++) {
+          var s = e.sigs[j];
+          if (!completa(s)) continue;
+          var f = dForma(feat, s), c = dCor(feat, s);
+          if (f < bf) { bf = f; tier = e.tier; }
+          if (c < bc) { bc = c; elem = e.element; }
+        }
+      }
+      if (!tier || !elem || bf > 0.2 || bc > 0.2) return null;
+      return { tier: tier, element: elem, dForma: bf, dCor: bc };
+    },
     exportJSON: function () {
       return JSON.stringify({
         version: 1,
@@ -183,10 +218,13 @@
         entries: this.entries.map(function (e) {
           var c = JSON.parse(JSON.stringify(e));
           c.sigs = c.sigs.map(function (s) {
-            return {
+            var o = {
               shape: s.shape.map(r3), hue: s.hue.map(r3),
               grid: s.grid.map(r3), size: s.size.map(r3)
             };
+            if (s.tone) o.tone = s.tone.map(r3);
+            if (s.form) o.form = s.form.map(r3);
+            return o;
           });
           return c;
         })

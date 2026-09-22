@@ -43,7 +43,10 @@ function gravarJSON(f, obj) {
 function novoId(p) { return p + Date.now().toString(36) + crypto.randomBytes(4).toString('hex'); }
 function r3(v) { return Math.round(v * 1000) / 1000; }
 function arred(f) {
-  return { shape: f.shape.map(r3), hue: f.hue.map(r3), grid: f.grid.map(r3), size: f.size.map(r3) };
+  const out = { shape: f.shape.map(r3), hue: f.hue.map(r3), grid: f.grid.map(r3), size: f.size.map(r3) };
+  if (f.tone) out.tone = Array.from(f.tone, r3);
+  if (f.form) out.form = Array.from(f.form, r3);
+  return out;
 }
 function texto(v, max) {
   return String(v == null ? '' : v).split('').filter(ch => ch.charCodeAt(0) >= 32 && ch !== '<' && ch !== '>')
@@ -221,7 +224,7 @@ function limparCelulas(cells, g) {
       entryId: null,
       qty: q != null && q >= 0 && q < 100000 ? q : null,
       ai: ai && ai.label ? ai : null,
-      origem: ['catalogo', 'manual', 'ia', 'semente'].indexOf(c.origem) >= 0 ? c.origem : 'manual'
+      origem: ['catalogo', 'manual', 'ia', 'forma', 'semente'].indexOf(c.origem) >= 0 ? c.origem : 'manual'
     };
   }).filter(Boolean);
 }
@@ -249,6 +252,10 @@ function salvarCatalogo() {
   cacheCatalogo = null;
 }
 
+let etagCatalogo = '';
+
+function etag() { catalogoPublico(); return etagCatalogo; }
+
 function catalogoPublico() {
   if (!cacheCatalogo) {
     cacheCatalogo = JSON.stringify({
@@ -261,6 +268,7 @@ function catalogoPublico() {
         customName: e.customName, range: e.range, thumb: e.thumb, sigs: e.sigs
       }))
     });
+    etagCatalogo = '"' + crypto.createHash('sha1').update(cacheCatalogo).digest('base64url').slice(0, 20) + '"';
   }
   return cacheCatalogo;
 }
@@ -274,7 +282,12 @@ function ajustarGrade(s, img) {
 }
 
 function reconstruir() {
-  for (const e of catalog.entries) e.sigs = (e.manualSigs || []).slice();
+  const miniaturas = new Map();
+  for (const e of catalog.entries) {
+    e.sigs = (e.manualSigs || []).slice();
+    miniaturas.set(e.id, e.thumb);
+    e.thumb = '';
+  }
   P.digitClearAll();
   const aprovadas = listarAmostras('approved').sort((a, b) => a.createdAt - b.createdAt);
   for (const s of aprovadas) {
@@ -287,6 +300,7 @@ function reconstruir() {
       if (e) aprenderCelula(img, s.grid, cell, e);
     }
   }
+  for (const e of catalog.entries) if (!e.thumb) e.thumb = miniaturas.get(e.id) || '';
   catalog.digits = P.digitExport();
   catalog.sigVersion = P.SIG_VERSION;
   salvarCatalogo();
@@ -610,7 +624,7 @@ function iniciar() {
 
 module.exports = {
   DATA_DIR, iniciar, segredo, erro,
-  catalogoPublico, rev: () => catalog.rev,
+  catalogoPublico, etag, rev: () => catalog.rev,
   entradas: () => catalog.entries,
   getSettings, salvarSettings, restaurarAparencia,
   criarAmostra, aprovar, rejeitar, excluirAmostra, listarAmostras, amostra, imagem,
