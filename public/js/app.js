@@ -541,14 +541,30 @@
     }, 160));
   }
 
+  function interpretar(q) {
+    const m = /^\s*(?:\d+\s+)?([A-Za-z]+)\s+([A-Za-z]+)(?:\s+stones?)?\s*(?:\([^)]*\))?\s*$/i.exec(String(q || ''));
+    if (!m) return null;
+    const t = P.TIERS.find(x => x.name.toLowerCase() === m[1].toLowerCase());
+    const e = P.ELEMENTS.find(x => x.toLowerCase() === m[2].toLowerCase());
+    return t && e ? { kind: 'stone', tier: t.name, element: e, customName: '' } : null;
+  }
+
   function abrirDD(inp, c, q) {
     DD.alvo = inp; DD.cell = c; DD.sel = 0;
-    const tokens = norm(q).split(/\s+/).filter(Boolean);
+    const comFaixa = q.indexOf('+') >= 0;
+    const tokens = norm(q).replace(/\([^)]*\)?/g, ' ').split(/\s+/).filter(t =>
+      t && !/^stones?$/.test(t) && !/^[()+\d-]+$/.test(t) && !(comFaixa && t === 'a'));
     let lista = opcoes().filter(o => tokens.every(t => o.busca.indexOf(t) >= 0));
     lista.sort((a, b) => (b.conhecida ? 1 : 0) - (a.conhecida ? 1 : 0));
+    const exato = interpretar(q);
+    if (exato) {
+      const k = rot(exato);
+      const achado = opcoes().find(o => o.texto === k);
+      lista = [achado].concat(lista.filter(o => o !== achado));
+    }
     lista = lista.slice(0, 60);
     DD.livre = q.trim();
-    if (DD.livre && !lista.some(o => norm(o.texto) === norm(DD.livre))) {
+    if (DD.livre && !exato && !lista.some(o => norm(o.texto) === norm(DD.livre))) {
       lista.push({ label: { kind: 'stone', tier: '', element: '', customName: DD.livre.slice(0, 60) }, texto: 'Usar como nome livre: "' + DD.livre + '"', especial: true });
     }
     DD.lista = lista;
@@ -643,10 +659,11 @@
         if (f.label.kind === 'ignore') return;
         if (f.fonte === 'ia') porIA++;
         if (f.fonte === 'incerto') conferir++;
-        const k = rot(f.label);
+        const l = (f.label.customName && interpretar(f.label.customName)) || f.label;
+        const k = rot(l);
         const q = c.qty === '' ? null : parseInt(c.qty, 10);
         if (q === null) semQtd.push(onde);
-        if (!mapa[k]) { mapa[k] = { label: f.label, qty: 0, algum: false }; ordem.push(k); }
+        if (!mapa[k]) { mapa[k] = { label: l, qty: 0, algum: false }; ordem.push(k); }
         if (q !== null) { mapa[k].qty += q; mapa[k].algum = true; }
       });
     });

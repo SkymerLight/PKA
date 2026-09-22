@@ -62,6 +62,24 @@ function faixa(tier) {
   return t ? t.range : '';
 }
 
+function canonTier(t) {
+  const alvo = String(t || '').trim().toLowerCase();
+  const achado = (catalog ? catalog.tiers : P.TIERS).find(x => x.name.toLowerCase() === alvo);
+  return achado ? achado.name : null;
+}
+
+function canonElemento(e) {
+  const alvo = String(e || '').trim().toLowerCase();
+  return P.ELEMENTS.find(x => x.toLowerCase() === alvo) || null;
+}
+
+function interpretarNome(nome) {
+  const m = /^\s*(?:\d+\s+)?([A-Za-z]+)\s+([A-Za-z]+)(?:\s+stones?)?\s*(?:\([^)]*\))?\s*$/i.exec(String(nome || ''));
+  if (!m) return null;
+  const tier = canonTier(m[1]), element = canonElemento(m[2]);
+  return tier && element ? { tier, element } : null;
+}
+
 function limparRotulo(l) {
   if (!l || typeof l !== 'object') return null;
   if (l.kind === 'ignore') return { kind: 'ignore', tier: '', element: '', customName: '' };
@@ -71,9 +89,51 @@ function limparRotulo(l) {
     element: texto(l.element, 30),
     customName: texto(l.customName, 60)
   };
-  if (!r.customName && (!r.tier || !r.element)) return null;
-  if (r.customName) { r.tier = ''; r.element = ''; }
+  if (r.customName) {
+    const p = interpretarNome(r.customName);
+    if (p) return { kind: 'stone', tier: p.tier, element: p.element, customName: '' };
+    r.tier = ''; r.element = '';
+    return r;
+  }
+  if (!r.tier || !r.element) return null;
+  r.tier = canonTier(r.tier) || r.tier;
+  r.element = canonElemento(r.element) || r.element;
   return r;
+}
+
+function normalizarEntradas() {
+  let mudou = false;
+  const moverCelulas = (de, para) => {
+    for (const s of amostras.values()) {
+      let alterou = false;
+      for (const c of s.cells) if (c.entryId === de.id) { c.entryId = para.id; c.label = limparRotulo(para); alterou = true; }
+      if (alterou) salvarAmostra(s);
+    }
+  };
+  for (const e of catalog.entries.slice()) {
+    let alvo = null;
+    if (e.kind === 'ignore') {
+      alvo = catalog.entries.find(x => x.kind === 'ignore');
+      if (alvo === e) continue;
+    } else if (e.customName) {
+      const p = interpretarNome(e.customName);
+      if (!p) continue;
+      alvo = catalog.entries.find(x => x !== e && x.kind === 'stone' && !x.customName &&
+        x.tier === p.tier && x.element === p.element);
+      if (!alvo) {
+        e.tier = p.tier; e.element = p.element; e.customName = ''; e.range = faixa(p.tier);
+        moverCelulas(e, e);
+        mudou = true;
+        continue;
+      }
+    } else continue;
+    moverCelulas(e, alvo);
+    alvo.manualSigs = (alvo.manualSigs || []).concat(e.manualSigs || []);
+    if (!alvo.thumb && e.thumb) alvo.thumb = e.thumb;
+    catalog.entries = catalog.entries.filter(x => x !== e);
+    mudou = true;
+  }
+  return mudou;
 }
 
 function acharEntrada(l) {
@@ -253,6 +313,7 @@ function aprovar(id, dados) {
   if (dados && dados.cells) s.cells = limparCelulas(dados.cells, s.grid);
   const img = imagem(s.id);
   for (const cell of s.cells) {
+    cell.label = limparRotulo(cell.label);
     if (!cell.label) { cell.entryId = null; continue; }
     const e = garantirEntrada(cell.label);
     cell.entryId = e.id;
@@ -520,7 +581,17 @@ function iniciar() {
   catalog = lerJSON(arq('catalog.json'), null);
   if (!catalog) { semear(); return; }
   for (const e of catalog.entries) { e.sigs = e.sigs || []; e.manualSigs = e.manualSigs || []; }
-  if (catalog.sigVersion !== P.SIG_VERSION) { reconstruir(); return; }
+  for (const s of amostras.values()) {
+    let alterou = false;
+    for (const c of s.cells) {
+      if (!c.label) continue;
+      const antes = JSON.stringify(c.label);
+      c.label = limparRotulo(c.label);
+      if (JSON.stringify(c.label) !== antes) alterou = true;
+    }
+    if (alterou) salvarAmostra(s);
+  }
+  if (normalizarEntradas() || catalog.sigVersion !== P.SIG_VERSION) { reconstruir(); return; }
   P.digitClearAll();
   if (catalog.digits) P.digitImport(catalog.digits);
 }
